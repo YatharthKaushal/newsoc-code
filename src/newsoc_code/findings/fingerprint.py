@@ -5,6 +5,10 @@ Rules that make a fingerprint useful:
 * Normalise whitespace in matched text so reformatting does not create "new" findings.
 * Never include a secret value. Secrets are represented by a keyed hash so the same secret
   can be matched across commits without the value ever being stored.
+
+``SCHEME_VERSION`` must be raised whenever the inputs of any fingerprint change. Cached
+baselines are keyed on it (see ``pipeline.scanner_key``), so fingerprints made under another
+scheme are never compared with new ones.
 """
 
 from __future__ import annotations
@@ -12,8 +16,12 @@ from __future__ import annotations
 import hashlib
 import hmac
 import re
+from pathlib import PurePosixPath
+
+SCHEME_VERSION = 2  # 2: SCA fingerprints use the project directory instead of the lockfile path
 
 _WS = re.compile(r"\s+")
+_PYPI_SEPARATORS = re.compile(r"[-_.]+")
 _SEP = "\x1f"
 
 
@@ -30,8 +38,41 @@ def sast_fingerprint(rule_id: str, path: str, match_text: str, occurrence: int) 
     return _digest("sast", rule_id, path, normalise_text(match_text), str(occurrence))
 
 
-def sca_fingerprint(ecosystem: str, package: str, manifest_path: str, vuln_id: str) -> str:
-    return _digest("sca", ecosystem.lower(), package.lower(), manifest_path, vuln_id)
+def _clean_dir(directory: str) -> str:
+    cleaned = PurePosixPath(directory.replace("\\", "/")).as_posix()
+    return "" if cleaned == "." else cleaned.lstrip("/")
+
+
+def project_dir(manifest_path: str) -> str:
+    """The directory of a lockfile or manifest, relative to the repository root.
+
+    POSIX separators, no leading ``./`` or ``/``, and ``""`` for the repository root.
+    """
+    return _clean_dir(str(PurePosixPath(manifest_path.replace("\\", "/")).parent))
+
+
+def normalise_package(ecosystem: str, name: str) -> str:
+    """Case-folded package name; PyPI names also fold ``-``, ``_`` and ``.`` (PEP 503)."""
+    folded = name.lower()
+    return _PYPI_SEPARATORS.sub("-", folded) if ecosystem.lower() == "pypi" else folded
+
+
+def sca_fingerprint(ecosystem: str, package: str, directory: str, vuln_id: str) -> str:
+    """Identity of one vulnerable dependency in one project directory.
+
+    ``directory`` is the folder holding the lockfile(s), not a lockfile path (see
+    ``project_dir``). Two lockfiles in one folder (``package-lock.json`` and ``yarn.lock``)
+    describe the same dependency tree, so they are one finding, and the fingerprint must
+    survive either file being added or removed. Neither the version nor the line is part of it:
+    a bump that leaves the advisory unfixed is not a new finding.
+    """
+    return _digest(
+        "sca-project",
+        ecosystem.lower(),
+        normalise_package(ecosystem, package),
+        _clean_dir(directory),
+        vuln_id,
+    )
 
 
 def secret_hash(value: str, salt: bytes) -> str:

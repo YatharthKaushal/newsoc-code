@@ -65,7 +65,7 @@ Key design choices: runner and adapter are separate interfaces (swap sandboxes f
 | Tool | Severity | Confidence | Fingerprint (no line numbers) |
 |---|---|---|---|
 | Semgrep (own rules) | `metadata.severity`, else ERROR/WARNING/INFO to high/medium/low | `metadata.confidence` (required in every rule) | rule_id, path, normalised match text, occurrence index |
-| OSV-Scanner | CVSS 9+ critical, 7+ high, 4+ medium, else low; `MAL-*` critical | exact lockfile version high, range medium | ecosystem, package, manifest path, canonical vuln id |
+| OSV-Scanner | CVSS 9+ critical, 7+ high, 4+ medium, else low; `MAL-*` critical | exact lockfile version high, range medium | ecosystem, package, project directory (not the lockfile), canonical vuln id |
 | Gitleaks | high; critical for private keys and cloud/VCS tokens | specific rule high, generic or entropy medium | rule_id + salted hash of the value; secret values never stored or posted |
 | Checkov | our curated table of about 60 check ids (OSS severity is null), default medium | curated high, else medium | check_id, path, resource address |
 
@@ -156,6 +156,23 @@ repository, and watch one real pull request complete. Nothing has run against re
 - The installation token is limited to `contents: read` on the one repository.
 - A failure closes the check as `neutral` in observe mode and `action_required` otherwise,
   including when the mode is not yet known.
+- SCA reports a vulnerable dependency once per project directory, not once per lockfile. Hits
+  with the same ecosystem, package, exact version and canonical advisory id whose lockfiles share
+  a directory are one finding (a repository that keeps `package-lock.json` and `yarn.lock` side
+  by side used to get every finding twice). The finding sits on the preferred lockfile
+  (`npm-shrinkwrap.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`; then `poetry.lock`,
+  `uv.lock`, `pdm.lock`, `Pipfile.lock`, `requirements.txt`; unknown names last, then by path)
+  and lists the others in `extra["also_in"]`, in the message and in the evidence. The SCA
+  fingerprint is (ecosystem, package, project directory, advisory id): it does not name a
+  lockfile, so adding or removing a duplicate lockfile never turns a baselined finding into a new
+  one, and it still has no version or line (a bump that leaves the advisory unfixed is not new).
+  The cost: a vulnerable version that appears only in a second lockfile of a directory, for a
+  package and advisory already reported there, counts as existing; and a waiver that names a
+  lockfile path must name the primary one. The same package in another directory (a monorepo) or
+  another ecosystem stays a separate finding, and so does the same package at another version
+  (those findings share one fingerprint, because the fingerprint has no version). Fingerprints
+  changed with this, so cached baselines are keyed on `fingerprint.SCHEME_VERSION` and are
+  rebuilt once.
 - Verified against GitHub's OpenAPI description: `merge_queues` is a valid permission key.
 - Postgres 15 or later is required (`NULLS NOT DISTINCT` on the active-job index).
 
