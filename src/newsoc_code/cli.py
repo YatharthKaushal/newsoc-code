@@ -172,11 +172,20 @@ def serve(
         str, typer.Option(help="Interface to bind; keep 127.0.0.1 behind a proxy")
     ] = "127.0.0.1",
     port: Annotated[int, typer.Option()] = 8000,
+    migrate: Annotated[bool, typer.Option(help="Apply database migrations first")] = False,
 ) -> None:
     """Run the webhook receiver (the web process)."""
     import uvicorn
 
     _logging()
+    if migrate:
+        from newsoc_code.db.session import make_engine
+        from newsoc_code.migrations import upgrade_to_head
+
+        engine = make_engine(get_settings().database_url)
+        upgrade_to_head(engine)
+        engine.dispose()
+        typer.echo("database is up to date")
     uvicorn.run("newsoc_code.app.main:create_app", factory=True, host=host, port=port)
 
 
