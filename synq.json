@@ -1,0 +1,4 @@
+{
+  "$schema": "https://synquic.tech/synq.schema.json",
+  "composePath": "deploy/compose.prod.yml"
+}

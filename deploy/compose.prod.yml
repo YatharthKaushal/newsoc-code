@@ -1,0 +1,72 @@
+# newsoc on Synq (https://synquic.tech/docs): web receiver + scan worker + Postgres.
+#
+# Only keys Synq models are used (image, build, command, environment, volumes, depends_on,
+# healthcheck, restart). Secrets are not in this file: ${...} values are filled from the
+# project's environment variables, which Synq stores encrypted.
+#
+# THE WORKER MOUNTS THE HOST'S DOCKER SOCKET. That is root-equivalent on the Docker host: the
+# worker starts the scanner containers. The scanners themselves run with no network, a read-only
+# root filesystem, no capabilities, an unprivileged user and memory/CPU limits. Run this on a
+# host you are happy to expose to that risk.
+#
+# The worker's data directory is mounted at the SAME path on the host and in the container,
+# because scanner containers are started by the host's Docker, which resolves paths on the host.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: newsoc
+      POSTGRES_DB: newsoc
+      POSTGRES_PASSWORD: ${NEWSOC_DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U newsoc -d newsoc"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["sh", "-c", "alembic upgrade head && exec newsoc serve --host 0.0.0.0 --port 8000"]
+    depends_on:
+      - db
+    environment:
+      NEWSOC_ENV: prod
+      NEWSOC_DATABASE_URL: postgresql+psycopg://newsoc:${NEWSOC_DB_PASSWORD}@db:5432/newsoc
+      NEWSOC_GITHUB_APP_ID: ${NEWSOC_GITHUB_APP_ID}
+      NEWSOC_GITHUB_WEBHOOK_SECRET: ${NEWSOC_GITHUB_WEBHOOK_SECRET}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["newsoc", "worker"]
+    depends_on:
+      - web
+    environment:
+      NEWSOC_ENV: prod
+      NEWSOC_DATABASE_URL: postgresql+psycopg://newsoc:${NEWSOC_DB_PASSWORD}@db:5432/newsoc
+      NEWSOC_GITHUB_APP_ID: ${NEWSOC_GITHUB_APP_ID}
+      NEWSOC_GITHUB_PRIVATE_KEY: ${NEWSOC_GITHUB_PRIVATE_KEY}
+      NEWSOC_FINGERPRINT_SALT: ${NEWSOC_FINGERPRINT_SALT}
+      NEWSOC_SCANNER_DOCKERFILE: /app/docker/scanners.Dockerfile
+      NEWSOC_RULES_DIR: /home/ubuntu/newsoc-data/rules
+      NEWSOC_WORK_ROOT: /home/ubuntu/newsoc-data/work
+      NEWSOC_OSV_DB_ROOT: /home/ubuntu/newsoc-data/osvdb
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/ubuntu/newsoc-data:/home/ubuntu/newsoc-data
+
+volumes:
+  pgdata:

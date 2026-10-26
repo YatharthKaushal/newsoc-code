@@ -16,6 +16,7 @@ import uuid
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from newsoc_code import osvdb
 from newsoc_code.config import Settings
 from newsoc_code.db.models import JobStatus
 from newsoc_code.db.session import session_scope
@@ -35,6 +36,7 @@ class Worker:
         worker_id: str | None = None,
         heartbeat_s: float | None = None,
         reap_every_s: float = 30.0,
+        refresher: osvdb.Refresher | None = None,
     ) -> None:
         self.sessions = session_factory
         self.processor = processor
@@ -44,6 +46,7 @@ class Worker:
             heartbeat_s if heartbeat_s is not None else max(settings.lease_s / 4, 1.0)
         )
         self.reap_every_s = reap_every_s
+        self.refresher = refresher
         self._stop = threading.Event()
         self._active: JobControl | None = None
 
@@ -150,6 +153,7 @@ class Worker:
                     self.reap()
                 except Exception:
                     log.exception("reaper failed")
+            self._refresh_vulnerability_data()
             try:
                 worked = self.run_once()
             except Exception:  # database unreachable, etc.: back off and keep going
@@ -157,6 +161,17 @@ class Worker:
                 worked = False
             if not worked:
                 self._stop.wait(poll_s)
+
+    def _refresh_vulnerability_data(self) -> None:
+        """Keep the offline OSV database fresh. A failure is logged and retried later; a snapshot
+        that is too old is refused by the SCA scanner, which reports Not assessed."""
+        if self.refresher is None:
+            return
+        try:
+            if self.refresher.run_if_due():
+                log.info("OSV vulnerability database refreshed")
+        except Exception:
+            log.exception("OSV database refresh failed; will retry")
 
     def request_shutdown(self) -> None:
         """Stop after the current job; the job in progress is returned to the queue."""

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import time
 import zipfile
 from datetime import UTC, datetime, timedelta
@@ -167,3 +168,25 @@ def test_a_verified_snapshot_is_not_world_writable(tmp_path):
     snap = osvdb.refresh(tmp_path, fake_downloader(), now=datetime(2026, 10, 1, tzinfo=UTC))
     assert snap.stat().st_mode & 0o777 == 0o755
     assert (snap / "osv-scalibr" / "npm" / "all.zip").stat().st_mode & 0o777 == 0o644
+
+
+def test_the_download_seed_lives_on_the_shared_path_not_in_tmp(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Docker host mounts the seed project, so a containerised worker must not put it in
+    its own /tmp, which the host cannot see (the deployed worker hit exactly this)."""
+    mounts: list[str] = []
+
+    def fake_run(cmd: list[str], **kw: object) -> subprocess.CompletedProcess[str]:
+        mounts.extend(cmd[i + 1] for i, part in enumerate(cmd) if part == "-v")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(osvdb.subprocess, "run", fake_run)
+    monkeypatch.setattr("os.getuid", lambda: 1000)
+    snapshot = tmp_path / "osvdb" / "snapshot-x"
+    snapshot.mkdir(parents=True)
+
+    osvdb.docker_downloader("img")(snapshot)
+
+    seed_mount = next(m for m in mounts if m.endswith(":/src:ro"))
+    assert seed_mount.startswith(str(tmp_path / "osvdb") + "/")

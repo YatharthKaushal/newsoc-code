@@ -13,7 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from newsoc_code.app.main import create_app
-from newsoc_code.config import Settings
+from newsoc_code.config import SecretMissing, Settings
 from newsoc_code.db.models import Installation, Repository, ScanJob, WebhookDelivery
 from newsoc_code.github.signature import sign
 
@@ -309,6 +309,6 @@ def test_no_documentation_endpoints_are_exposed(client: TestClient) -> None:
 
 
 def test_missing_webhook_secret_fails_at_startup(tmp_path: Any) -> None:
-    settings = Settings(github_webhook_secret_path=tmp_path / "missing")
-    with pytest.raises(FileNotFoundError, match="webhook_secret"):
+    settings = Settings(github_webhook_secret_path=tmp_path / "missing", github_webhook_secret=None)
+    with pytest.raises(SecretMissing, match="NEWSOC_GITHUB_WEBHOOK_SECRET"):
         create_app(settings, session_factory=None)

@@ -12,7 +12,7 @@ import logging
 import os
 import signal
 import tempfile
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -28,8 +28,9 @@ from newsoc_code.policy.engine import Conclusion, PolicyOutcome, evaluate
 from newsoc_code.policy.loader import PolicyLoad, load_policy
 from newsoc_code.policy.schema import Mode
 from newsoc_code.report.sarif import to_sarif
-from newsoc_code.runner.docker import DockerRunner
-from newsoc_code.scan import rules_version, scan_tree
+from newsoc_code.runner.docker import DockerRunner, RootUserRefused, resolve_user
+from newsoc_code.runner.image import ImageBuildError, ensure_image
+from newsoc_code.scan import install_rules, rules_version, scan_tree
 from newsoc_code.scanners.base import ScanContext, TreeInfo
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="newsoc Code arm")
@@ -197,14 +198,23 @@ def worker(
             "NEWSOC_GITHUB_APP_ID is not set; run `newsoc create-app` first", fg="red", err=True
         )
         raise typer.Exit(2)
-    runner = DockerRunner(image=settings.scanner_image)
+    image = settings.scanner_image
+    try:
+        resolve_user(None)  # refuse to run as root before spending minutes building an image
+        if settings.scanner_dockerfile is not None:
+            image = ensure_image(settings.scanner_dockerfile)
+        runner = DockerRunner(image=image)
+    except (RootUserRefused, ImageBuildError) as exc:
+        typer.secho(str(exc), fg="red", err=True)
+        raise typer.Exit(2) from exc
     if not runner.available():
         typer.secho(
-            f"Docker image {settings.scanner_image!r} is not available (is the daemon reachable?)",
+            f"Docker image {image!r} is not available (is the daemon reachable?)",
             fg="red",
             err=True,
         )
         raise typer.Exit(2)
+    install_rules(settings.bundled_rules_dir, settings.rules_dir)
     killed = runner.kill_orphans()  # this assumes a single worker process per host
     if killed:
         typer.echo(f"stopped {killed} scanner container(s) left by a previous worker")
@@ -222,7 +232,16 @@ def worker(
             root, f"{settings.github_clone_url}/{valid_repo(repo)}.git", token
         ),
     )
-    instance = Worker(session_factory=sessions, processor=processor, settings=settings)
+    refresher = None
+    if settings.osv_refresh_hours > 0:
+        refresher = osvdb.Refresher(
+            settings.osv_db_root,
+            osvdb.docker_downloader(image),
+            timedelta(hours=settings.osv_refresh_hours),
+        )
+    instance = Worker(
+        session_factory=sessions, processor=processor, settings=settings, refresher=refresher
+    )
     for sig in (signal.SIGTERM, signal.SIGINT):
         signal.signal(sig, lambda *_: instance.request_shutdown())
     typer.echo(f"worker {instance.worker_id} started")

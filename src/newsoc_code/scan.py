@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
+import shutil
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -30,6 +32,25 @@ def rules_version(rules_dir: Path) -> str:
         digest.update(path.relative_to(rules_dir).as_posix().encode())
         digest.update(path.read_bytes())
     return digest.hexdigest()[:12]
+
+
+def install_rules(source: Path, dest: Path) -> Path:
+    """Copy the bundled rule pack to ``dest``, replacing what is there.
+
+    Scanner containers are started by the Docker host, which mounts the rules from a HOST path.
+    A containerised worker therefore copies them into a directory it shares with the host at the
+    same path. A no-op when source and destination are the same directory.
+    """
+    if source.resolve() == dest.resolve():
+        return dest
+    staging = dest.with_name(dest.name + ".new")
+    shutil.rmtree(staging, ignore_errors=True)
+    shutil.copytree(source, staging)
+    for path in [staging, *staging.rglob("*")]:
+        path.chmod(0o755 if path.is_dir() else 0o644)  # readable by the unprivileged scanners
+    shutil.rmtree(dest, ignore_errors=True)
+    os.replace(staging, dest)
+    return dest
 
 
 def run_adapter(adapter: ScannerAdapter, ctx: ScanContext, runner: Runner) -> ScanResult:

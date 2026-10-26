@@ -4,3 +4,10 @@ __pycache__
 *.pyc
 tests
 docs
+.hypothesis
+.mypy_cache
+.pytest_cache
+.ruff_cache
+*.pem
+*.env
+.env*

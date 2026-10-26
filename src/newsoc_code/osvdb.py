@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from newsoc_code.runner.docker import resolve_user
+
 ECOSYSTEMS = ("npm", "PyPI")
 SNAPSHOT_PREFIX = "snapshot-"
 CURRENT = "current"
@@ -30,6 +32,7 @@ MIN_ZIP_BYTES = 100_000  # a real ecosystem database is megabytes; this catches 
 KEEP_SNAPSHOTS = 2
 
 Downloader = Callable[[Path], None]
+REFRESH_RETRY = timedelta(minutes=15)  # after a failed refresh, wait this long before trying again
 
 
 class StaleDatabaseError(ValueError):
@@ -143,10 +146,12 @@ def docker_downloader(
     command on a seed project of our own, never on customer code. A tiny project with an npm
     lockfile and a PyPI requirements file makes OSV-Scanner fetch exactly those two databases.
     """
-    uid = user or f"{os.getuid()}:{os.getgid()}"
+    uid = resolve_user(user)
 
     def download(snapshot: Path) -> None:
-        with tempfile.TemporaryDirectory(prefix="newsoc-osv-seed-") as seed_dir:
+        # The Docker HOST mounts the seed, so it must live somewhere the host can see at the same
+        # path: next to the snapshot, which is on the shared data directory in a deployed worker.
+        with tempfile.TemporaryDirectory(prefix=".osv-seed-", dir=snapshot.parent) as seed_dir:
             seed = Path(seed_dir)
             (seed / "package-lock.json").write_text(
                 '{"name":"seed","lockfileVersion":3,"requires":true,"packages":{"":{"name":"seed"},'
@@ -193,3 +198,46 @@ def docker_downloader(
                 raise RuntimeError(f"osv-scanner database download failed: {done.stderr[-500:]}")
 
     return download
+
+
+class Refresher:
+    """Keeps the snapshot fresh from inside the worker: refreshes when there is none or it is
+    older than ``every``. A failed refresh is retried after ``REFRESH_RETRY``, and a stale
+    snapshot is never used in the meantime (see ``check``)."""
+
+    def __init__(
+        self,
+        db_root: Path,
+        downloader: Downloader,
+        every: timedelta,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    ) -> None:
+        self.db_root = db_root
+        self.downloader = downloader
+        self.every = every
+        self._clock = clock
+        self._last_failure: datetime | None = None
+
+    def due(self) -> bool:
+        now = self._clock()
+        if self._last_failure is not None and now - self._last_failure < REFRESH_RETRY:
+            return False
+        snapshot = current(self.db_root)
+        if snapshot is None:
+            return True
+        try:
+            return age_of(snapshot, now) >= self.every
+        except StaleDatabaseError:  # the snapshot has no database files at all
+            return True
+
+    def run_if_due(self) -> bool:
+        """Refresh if needed. Returns True when a new snapshot was installed."""
+        if not self.due():
+            return False
+        try:
+            refresh(self.db_root, self.downloader, self._clock())
+        except Exception:
+            self._last_failure = self._clock()
+            raise
+        self._last_failure = None
+        return True

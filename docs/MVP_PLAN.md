@@ -161,3 +161,12 @@ repository, and watch one real pull request complete. Nothing has run against re
 
 **Not yet done:** the checkout size cap is applied after the fetch, not during it; a renamed
 file's existing findings look new; one concurrent job per worker; weeks 4 to 8 of the plan.
+
+**Deployment (added 2026-10-26):** `Dockerfile`, `deploy/compose.prod.yml` and `synq.json` deploy
+the stack on a Synq host. Decisions: the worker mounts the host Docker socket (accepted for a
+test on a shared host; a separate server is the recommended home); the worker runs unprivileged
+and refuses to start scanners as root; secrets come from environment variables (`SecretStr`) with
+no built-in salt outside `dev`; the worker builds the scanner image, installs the rule pack and
+refreshes the OSV database itself, all on a directory shared at the same path with the host.
+A topology test caught one real bug (the OSV seed project was created in the container's own
+`/tmp`, invisible to the host's Docker), now covered by a regression test.

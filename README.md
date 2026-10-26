@@ -79,6 +79,31 @@ Creating the app and installing it are browser steps only you can do.
 `uv run newsoc replay-webhook payload.json --event pull_request` re-sends a saved payload,
 signed with the local secret.
 
+## Deploy on Synq
+
+`deploy/compose.prod.yml` runs the web receiver, the worker and Postgres as one Synq project
+(`synq.json` points Synq at it). Read these before deploying:
+
+- **The worker mounts the host's Docker socket**, which is root-equivalent on that host. It
+  starts the scanner containers. Scanners themselves run with no network, a read-only root
+  filesystem, no capabilities and an unprivileged user, and the worker refuses to start scanners
+  as root. Put it on a host you are comfortable exposing to that.
+- **Shared data directory.** Scanner containers are started by the host's Docker, so the worker's
+  data directory (`/home/ubuntu/newsoc-data` in the compose file) must be mounted at the *same
+  path* on the host and in the container, and be owned by uid 1000. Create it on the host first.
+- **Docker group id.** The image joins group 109 (Ubuntu's usual `docker` gid) so the unprivileged
+  worker can use the socket. If `getent group docker` on the host says otherwise, rebuild with
+  `--build-arg DOCKER_GID=<id>`.
+- **Secrets** are never in the repo: set `NEWSOC_DB_PASSWORD`, `NEWSOC_GITHUB_APP_ID`,
+  `NEWSOC_GITHUB_PRIVATE_KEY` (PEM, or base64 of it), `NEWSOC_GITHUB_WEBHOOK_SECRET` and
+  `NEWSOC_FINGERPRINT_SALT` as secret environment variables in Synq. The web service never
+  receives the private key.
+- On first start the worker builds the scanner image on the host (a few minutes), installs the
+  rule pack into the data directory and downloads the vulnerability database (about 250 MB);
+  it refreshes that every 6 hours. Until the first download finishes, SCA reports Not assessed.
+- Create the GitHub App with the deployed URL as its webhook:
+  `uv run newsoc create-app --env prod --name <unique-name> --webhook-url https://<host>/webhooks/github`.
+
 ## Tests
 
 ```bash

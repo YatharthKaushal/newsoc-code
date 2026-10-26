@@ -29,6 +29,26 @@ _POLL_S = 0.25
 MANAGED_LABEL = "newsoc.managed=true"
 
 
+class RootUserRefused(ValueError):
+    """Scanner containers must not run as root, even sandboxed: it widens what a container
+    escape could do."""
+
+
+def resolve_user(user: str | None) -> str:
+    """The ``uid:gid`` scanner containers run as: the given one, else this process's.
+
+    Root (uid 0) is refused. If the worker itself runs as root, set an unprivileged user.
+    """
+    resolved = user or f"{os.getuid()}:{os.getgid()}"
+    uid = resolved.split(":", 1)[0]
+    if uid in ("0", "root"):
+        raise RootUserRefused(
+            "refusing to run scanner containers as root; run the worker as an unprivileged "
+            "user or set an unprivileged uid:gid for the scanners"
+        )
+    return resolved
+
+
 class DockerRunner:
     def __init__(
         self,
@@ -40,7 +60,7 @@ class DockerRunner:
     ) -> None:
         self.image = image
         self.docker_cmd = tuple(docker_cmd)
-        self.user = user or f"{os.getuid()}:{os.getgid()}"
+        self.user = resolve_user(user)
         self.tmpfs_mb = tmpfs_mb
         self.cancel = cancel
 
