@@ -132,6 +132,12 @@ daemon or image is missing, so check the skip count in the summary.
 - A renamed file's existing findings look new (fingerprints include the path).
 - Semgrep Community Edition has no cross-file analysis, and the rule pack covers about 30
   weakness classes in JavaScript/TypeScript and Python.
+- Gitleaks' entropy rule (`generic-api-key`) is ignored in lock and checksum files (`*.lock`,
+  `*.sum`, `package-lock.json`, ...), where it mistakes dependency hashes for keys. Specific
+  rules (GitHub tokens, AWS keys, private keys) still apply there, and the number of ignored
+  matches appears under Notes in the check summary.
+- Semgrep skips what it cannot parse. Files it could only partly parse are listed under Notes in
+  the check summary, because findings in them may be missing.
 - Draft pull requests are scanned when marked ready for review.
 - One worker process, one job at a time; no dashboard yet.
 - The checkout size cap is checked after the fetch, not during it.
