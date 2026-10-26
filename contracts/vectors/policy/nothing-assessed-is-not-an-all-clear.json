@@ -1,0 +1,42 @@
+{
+  "name": "nothing-assessed-is-not-an-all-clear",
+  "description": "No scanner had anything to analyse (for example an empty repository). The conclusion is success, but the title says nothing was assessed.",
+  "policy_yaml": "mode: enforce\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "not_applicable",
+      "reason": "no supported source files",
+      "findings": []
+    },
+    {
+      "scanner": "sca-scanner",
+      "category": "sca",
+      "status": "not_applicable",
+      "reason": "no supported lockfile",
+      "findings": []
+    },
+    {
+      "scanner": "secrets-scanner",
+      "category": "secrets",
+      "status": "not_applicable",
+      "reason": "empty repository",
+      "findings": []
+    },
+    {
+      "scanner": "iac-scanner",
+      "category": "iac",
+      "status": "not_applicable",
+      "reason": "no infrastructure files",
+      "findings": []
+    }
+  ],
+  "expected": {
+    "conclusion": "success",
+    "title": "Nothing was assessed (no scanner had anything to analyse)",
+    "outcomes": {}
+  }
+}

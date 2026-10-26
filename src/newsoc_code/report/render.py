@@ -13,8 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from newsoc_code.findings.schema import AssessmentStatus, Finding, ScanResult, Severity
-from newsoc_code.policy.engine import Decision, Outcome, PolicyOutcome
+from newsoc_code.findings.schema import AssessmentStatus, Category, Finding, ScanResult, Severity
+from newsoc_code.policy.engine import CODE_ANALYSIS, Decision, GapKind, Outcome, PolicyOutcome
 
 COMMENT_MARKER = "<!-- newsoc:summary -->"
 CHECK_NAME = "newsoc/security"
@@ -28,6 +28,18 @@ FOOTER = (
     "newsoc reports technical evidence from automated scanners. It is not a certification and "
     "does not show that a system is secure or compliant."
 )
+
+# What newsoc can look at today; keep in step with the scanner adapters (see docs/MVP_PLAN.md).
+SUPPORTED_NOTE = (
+    "newsoc analyses JavaScript, TypeScript and Python code, npm and PyPI dependencies "
+    "(from lockfiles), and Terraform files and Dockerfiles. Secrets are checked in every language."
+)
+_CATEGORY_NAME = {
+    Category.SAST: "SAST",
+    Category.SCA: "SCA",
+    Category.SECRETS: "secrets",
+    Category.IAC: "IaC",
+}
 
 _LEVEL = {
     Outcome.BLOCKED: "failure",
@@ -116,10 +128,43 @@ def _category_rows(outcome: PolicyOutcome, results: list[ScanResult]) -> list[st
     for r in results:
         cat = status_by_scanner.get(r.scanner)
         word = r.assessment().value
+        count = str(len(r.findings))
         if r.assessment() is AssessmentStatus.NOT_ASSESSED:
             word += f" ({md_text(cat.detail if cat else r.reason or 'unknown', 120)})"
-        rows.append(f"| {r.category.value} | {r.scanner} | {word} | {len(r.findings)} |")
+            count = "-"  # a scanner that did not run has not found "0"
+        rows.append(f"| {r.category.value} | {r.scanner} | {word} | {count} |")
     return rows
+
+
+def _coverage_lines(outcome: PolicyOutcome) -> list[str]:
+    """Which categories were assessed and which were not. The reason for each gap is in the
+    category table, so only its kind (not applicable, failed, timed out) is repeated here.
+
+    When no code-analysis category (SAST, SCA, IaC) was assessed, say so plainly and list what
+    newsoc does support, so a green check on an unsupported language is not read as a review.
+    """
+    cov = outcome.coverage
+    names = ", ".join(_CATEGORY_NAME[c] for c in cov.assessed)
+    if not cov.gaps:
+        return [f"**Coverage:** all categories assessed ({names})."]
+    missing = ", ".join(f"{_CATEGORY_NAME[g.category]} ({g.kind.value})" for g in cov.gaps)
+    lines = [f"**Coverage:** assessed: {names or 'none'}. Not assessed: {missing}."]
+    if cov.code_analysis_assessed:
+        return lines
+    only = (
+        "Only secrets were checked."
+        if Category.SECRETS in cov.assessed
+        else "Secrets were not assessed either."
+    )
+    lines += [
+        "",
+        "> **No code analysis ran.** SAST (static analysis), SCA (dependency scanning) and IaC "
+        "(infrastructure-as-code scanning) were not assessed, so this result does not cover "
+        f"code, dependencies or infrastructure files. {only}",
+    ]
+    if any(g.category in CODE_ANALYSIS and g.kind is GapKind.NOT_APPLICABLE for g in cov.gaps):
+        lines += [">", f"> {SUPPORTED_NOTE}"]
+    return lines
 
 
 def _finding_line(d: Decision) -> str:
@@ -153,6 +198,7 @@ def _summary(
     rules_version: str | None,
 ) -> str:
     lines = [f"**{md_text(outcome.title)}**", "", f"Findings: {_counts(outcome)}.", ""]
+    lines += [*_coverage_lines(outcome), ""]
     lines += _category_rows(outcome, results)
     if shown:
         lines += [
@@ -188,6 +234,8 @@ def render_comment(
         f"### newsoc security check: {outcome.conclusion.value.replace('_', ' ')}",
         "",
         f"{md_text(outcome.title)}. Findings: {_counts(outcome)}.",
+        "",
+        *_coverage_lines(outcome),
         "",
         *_category_rows(outcome, results),
     ]

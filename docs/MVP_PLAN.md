@@ -170,3 +170,22 @@ no built-in salt outside `dev`; the worker builds the scanner image, installs th
 refreshes the OSV database itself, all on a directory shared at the same path with the host.
 A topology test caught one real bug (the OSV seed project was created in the container's own
 `/tmp`, invisible to the host's Docker), now covered by a regression test.
+
+**Coverage honesty (added 2026-10-26).** A replay of a 100% Java repository gave `success` with
+"No new findings" although only the secrets scanner had run (static analysis (SAST), dependency
+scanning (SCA) and infrastructure-as-code scanning (IaC) were "not applicable"). Decisions:
+- **Presentation only; gating is unchanged.** No input changes its conclusion (the policy vectors
+  are a contract with the future Go agent). A matrix of 7,776 inputs recorded from the engine at
+  commit ba49715 proves it (`tests/unit/test_policy_conclusion_matrix.py`). Making a missing code
+  analysis block would be a policy option, decided separately.
+- The engine computes a `Coverage` (assessed categories; each gap is not applicable, failed, timed
+  out or not run). When no code-analysis category (SAST, SCA, IaC) was assessed, a clean result's
+  title is "No new findings; only secrets were assessed (no SAST, SCA or IaC coverage)" (or
+  "Nothing was assessed ..."). Every other title is unchanged; new vectors pin the wording.
+- The check summary and the comment get a "Coverage" line (the reason per scanner stays in the
+  category table, which now shows "-" instead of "0" findings for a scanner that did not run).
+  "Verified" keeps its meaning: scanner X ran with no findings at commit Y.
+- **Unsupported-language note: yes.** When no code analysis ran because nothing applied, the note
+  also lists what newsoc supports: JavaScript, TypeScript and Python code; npm and PyPI dependencies
+  (lockfiles); Terraform files and Dockerfiles; secrets in every language. Partial gaps and scanner
+  failures get the Coverage line only, so routine pull requests stay short.

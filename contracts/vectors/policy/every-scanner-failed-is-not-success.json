@@ -1,0 +1,42 @@
+{
+  "name": "every-scanner-failed-is-not-success",
+  "description": "Every scanner failed or timed out in observe mode: neutral, and the title lists every category as not assessed (alphabetical).",
+  "policy_yaml": "mode: observe\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "failed",
+      "reason": "boom",
+      "findings": []
+    },
+    {
+      "scanner": "sca-scanner",
+      "category": "sca",
+      "status": "timeout",
+      "reason": "timed out",
+      "findings": []
+    },
+    {
+      "scanner": "secrets-scanner",
+      "category": "secrets",
+      "status": "failed",
+      "reason": "boom",
+      "findings": []
+    },
+    {
+      "scanner": "iac-scanner",
+      "category": "iac",
+      "status": "failed",
+      "reason": "boom",
+      "findings": []
+    }
+  ],
+  "expected": {
+    "conclusion": "neutral",
+    "title": "Not assessed: iac, sast, sca, secrets",
+    "outcomes": {}
+  }
+}

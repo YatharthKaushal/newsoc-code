@@ -1,0 +1,42 @@
+{
+  "name": "one-code-analysis-category-assessed-keeps-the-plain-title",
+  "description": "SCA ran clean; SAST and IaC did not apply. Any assessed code-analysis category keeps the plain title.",
+  "policy_yaml": "mode: enforce\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "not_applicable",
+      "reason": "no supported source files",
+      "findings": []
+    },
+    {
+      "scanner": "sca-scanner",
+      "category": "sca",
+      "status": "ok",
+      "reason": null,
+      "findings": []
+    },
+    {
+      "scanner": "secrets-scanner",
+      "category": "secrets",
+      "status": "ok",
+      "reason": null,
+      "findings": []
+    },
+    {
+      "scanner": "iac-scanner",
+      "category": "iac",
+      "status": "not_applicable",
+      "reason": "no infrastructure files",
+      "findings": []
+    }
+  ],
+  "expected": {
+    "conclusion": "success",
+    "title": "No new findings",
+    "outcomes": {}
+  }
+}

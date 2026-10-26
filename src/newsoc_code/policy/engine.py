@@ -10,6 +10,11 @@ Decision for one finding::
 
 Conclusions use GitHub's check-run vocabulary. ``neutral`` PASSES a required status check, so
 anything that must stop a merge is ``failure`` or ``action_required``.
+
+Coverage is presentation only. ``Coverage`` records which categories were assessed and why the
+others were not, and the plain all-clear title is replaced when no code-analysis category was
+assessed (a green check must not suggest that code was reviewed when only secrets were
+scanned). Nothing about coverage changes which conclusion an input produces.
 """
 
 from __future__ import annotations
@@ -64,6 +69,67 @@ class CategoryStatus:
     detail: str = ""
     failed: bool = False  # the scanner crashed, timed out or produced unusable output
     fail_closed: bool = False  # ... and the policy treats that category as blocking
+    status: ScanStatus = ScanStatus.OK  # what the scanner reported; says why it was not assessed
+
+
+# Categories that analyse code, dependencies or infrastructure files. Secrets scanning reads
+# every file whatever its language, so a clean secrets result says nothing about whether the
+# code itself was analysed.
+CODE_ANALYSIS = frozenset({Category.SAST, Category.SCA, Category.IAC})
+
+ONLY_SECRETS_TITLE = "No new findings; only secrets were assessed (no SAST, SCA or IaC coverage)"
+NOTHING_ASSESSED_TITLE = "Nothing was assessed (no scanner had anything to analyse)"
+
+
+class GapKind(StrEnum):
+    """Why a category was not assessed."""
+
+    NOT_APPLICABLE = "not applicable"  # the scanner had nothing to look at
+    FAILED = "failed"
+    TIMED_OUT = "timed out"
+    NOT_RUN = "not run"  # no scanner reported for this category
+
+
+@dataclass(frozen=True)
+class CoverageGap:
+    category: Category
+    kind: GapKind
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class Coverage:
+    """Which of the four categories were assessed (a scanner ran to completion), and why not."""
+
+    assessed: tuple[Category, ...]
+    gaps: tuple[CoverageGap, ...]
+
+    @property
+    def code_analysis_assessed(self) -> bool:
+        return any(c in CODE_ANALYSIS for c in self.assessed)
+
+
+def coverage_of(categories: list[CategoryStatus]) -> Coverage:
+    """Summarise per-scanner statuses per category, in declaration order of ``Category``.
+
+    A category counts as assessed only when a scanner for it completed and none failed or timed
+    out; ``not applicable`` alone never counts as assessed.
+    """
+    assessed: list[Category] = []
+    gaps: list[CoverageGap] = []
+    for category in Category:
+        rows = [c for c in categories if c.category is category]
+        broken = next((c for c in rows if c.failed), None)
+        if broken is not None:
+            kind = GapKind.TIMED_OUT if broken.status is ScanStatus.TIMEOUT else GapKind.FAILED
+            gaps.append(CoverageGap(category, kind, broken.detail))
+        elif any(c.status is ScanStatus.OK for c in rows):
+            assessed.append(category)
+        elif rows:
+            gaps.append(CoverageGap(category, GapKind.NOT_APPLICABLE, rows[0].detail))
+        else:
+            gaps.append(CoverageGap(category, GapKind.NOT_RUN, "no scanner result"))
+    return Coverage(tuple(assessed), tuple(gaps))
 
 
 @dataclass
@@ -74,6 +140,10 @@ class PolicyOutcome:
     categories: list[CategoryStatus] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     expired_waivers: list[Waiver] = field(default_factory=list)
+
+    @property
+    def coverage(self) -> Coverage:
+        return coverage_of(self.categories)
 
     def of(self, *outcomes: Outcome) -> list[Decision]:
         return [d for d in self.decisions if d.outcome in outcomes]
@@ -159,10 +229,14 @@ def _category_status(policy: Policy, result: ScanResult) -> CategoryStatus:
     assessment = result.assessment()
     if result.status is ScanStatus.NOT_APPLICABLE:
         return CategoryStatus(
-            result.category, result.scanner, assessment, result.reason or "no applicable files"
+            result.category,
+            result.scanner,
+            assessment,
+            result.reason or "no applicable files",
+            status=result.status,
         )
     if result.status is ScanStatus.OK:
-        return CategoryStatus(result.category, result.scanner, assessment)
+        return CategoryStatus(result.category, result.scanner, assessment, status=result.status)
     blocking = policy.action_for(result.category) is Action.BLOCK
     # Secrets always fail closed when set to block; other categories follow on_scanner_error.
     fail_closed = blocking and (
@@ -175,6 +249,7 @@ def _category_status(policy: Policy, result: ScanResult) -> CategoryStatus:
         result.reason or "scanner failed",
         failed=True,
         fail_closed=fail_closed,
+        status=result.status,
     )
 
 
@@ -199,4 +274,18 @@ def _conclude(
         return Conclusion.NEUTRAL, f"Not assessed: {names}"
     if any(d.outcome is Outcome.WARNED for d in decisions):
         return Conclusion.NEUTRAL, "Findings reported; none block"
-    return Conclusion.SUCCESS, "No new findings"
+    return Conclusion.SUCCESS, _all_clear_title(coverage_of(categories))
+
+
+def _all_clear_title(coverage: Coverage) -> str:
+    """The title of a clean result. Wording only: the conclusion is already ``success``.
+
+    "No new findings" is kept when some code-analysis category was assessed. Otherwise the title
+    says what was and was not looked at, so a green check cannot be read as "the code was
+    reviewed". The same rule must hold in any other implementation (see the conformance vectors).
+    """
+    if coverage.code_analysis_assessed:
+        return "No new findings"
+    if Category.SECRETS in coverage.assessed:
+        return ONLY_SECRETS_TITLE
+    return NOTHING_ASSESSED_TITLE
