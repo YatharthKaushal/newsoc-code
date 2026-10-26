@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from fnmatch import fnmatchcase
+from pathlib import PurePosixPath
 from typing import Any
 
 from newsoc_code.findings.fingerprint import secret_hash, secrets_fingerprint
@@ -45,6 +47,25 @@ CRITICAL_RULES = frozenset(
 )
 MEDIUM_CONFIDENCE_RULES = frozenset({"generic-api-key"})
 MIN_PREFIX_SECRET_LEN = 20
+
+# Dependency lock and checksum manifests (matched case-insensitively on the file name, at any
+# depth). Their "name: <hash>" lines look like credentials to Gitleaks' entropy-based rule, e.g.
+# the SPEC CHECKSUMS section of a CocoaPods Podfile.lock.
+CHECKSUM_MANIFEST_PATTERNS = (
+    "*.lock",  # Podfile.lock, yarn.lock, Cargo.lock, Gemfile.lock, poetry.lock, composer.lock, ...
+    "*.sum",  # go.sum, go.work.sum
+    "*.lockfile",  # gradle.lockfile
+    "package-lock.json",
+    "npm-shrinkwrap.json",
+    "pnpm-lock.yaml",
+    "packages.lock.json",  # NuGet
+    "package.resolved",  # Swift Package Manager
+    ".terraform.lock.hcl",
+)
+# Only these rules are dropped for those files. Specific rules (github-pat, aws-access-token,
+# private-key, ...) match a fixed token shape, so a hit in a lock file is still a real leak.
+CHECKSUM_NOISY_RULES = frozenset({"generic-api-key"})
+MAX_SUPPRESSED_FILES_LISTED = 3
 
 
 class GitleaksAdapter(ScannerAdapter):
@@ -108,7 +129,10 @@ class GitleaksAdapter(ScannerAdapter):
                 return self.failed(run, "gitleaks produced no readable JSON report")
             if run.exit_code == 1 and not leaks:
                 return self.failed(run, "gitleaks reported leaks but wrote no report")
-            return self.ok(run, self._findings(ctx, leaks))
+            # Dropped before grouping, so a value that also appears in real source still counts.
+            kept, dropped = _drop_checksum_noise(leaks)
+            notes = [_suppression_note(dropped)] if dropped else []
+            return self.ok(run, self._findings(ctx, kept), notes)
         finally:
             report.unlink(missing_ok=True)  # it holds raw secret values
 
@@ -162,6 +186,41 @@ class GitleaksAdapter(ScannerAdapter):
                 )
             )
         return findings
+
+
+def is_checksum_manifest(path: str) -> bool:
+    """True for a lock or checksum manifest, judged by file name only."""
+    name = PurePosixPath(repo_relative(path)).name.lower()
+    return any(fnmatchcase(name, pattern) for pattern in CHECKSUM_MANIFEST_PATTERNS)
+
+
+def _drop_checksum_noise(
+    leaks: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Split off entropy-rule hits inside lock and checksum manifests.
+
+    This applies the same way to a working-tree scan and to a history scan: history records
+    carry the path the file had in that commit, and a lock file is as noisy there as now.
+    """
+    kept: list[dict[str, Any]] = []
+    dropped: list[dict[str, Any]] = []
+    for leak in leaks:
+        rule_id, file = str(leak.get("RuleID", "")), str(leak.get("File", ""))
+        noisy = rule_id in CHECKSUM_NOISY_RULES and is_checksum_manifest(file)
+        (dropped if noisy else kept).append(leak)
+    return kept, dropped
+
+
+def _suppression_note(dropped: list[dict[str, Any]]) -> str:
+    files = sorted({repo_relative(str(leak.get("File", ""))) for leak in dropped})
+    shown = ", ".join(files[:MAX_SUPPRESSED_FILES_LISTED])
+    if len(files) > MAX_SUPPRESSED_FILES_LISTED:
+        shown += f" (+{len(files) - MAX_SUPPRESSED_FILES_LISTED} more)"
+    return (
+        f"gitleaks ignored {len(dropped)} generic-api-key match(es) in lock or checksum "
+        f"file(s) ({shown}), which hold dependency hashes. Specific secret rules still apply "
+        "to those files."
+    )
 
 
 def _masked(leak: dict[str, Any], secret: str) -> str:

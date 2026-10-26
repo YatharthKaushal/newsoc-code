@@ -53,6 +53,13 @@ EXCLUDES = (
     "benchmark",
 )
 MAX_SCOPED_FILES = 500
+# Error types in Semgrep's JSON `errors` array that mean a file was analysed incompletely.
+PARTIAL_PARSE_ERROR = "PartialParsing"
+SYNTAX_ERRORS = frozenset(
+    {"SyntaxError", "LexicalError", "ParseError", "OtherParseError", "AstBuilderError"}
+)
+MAX_NOTE_PATHS = 5
+MAX_NOTE_PATH_CHARS = 120
 _CWE = re.compile(r"CWE-\d+", re.IGNORECASE)
 _SEVERITY_BY_LEVEL = {"ERROR": Severity.HIGH, "WARNING": Severity.MEDIUM, "INFO": Severity.LOW}
 
@@ -126,13 +133,7 @@ class SemgrepAdapter(ScannerAdapter):
             if finding is not None:
                 findings.append(finding)
 
-        notes = []
-        errors = data.get("errors") or []
-        if errors:
-            notes.append(
-                f"semgrep reported {len(errors)} non-fatal error(s), e.g. unparsable files"
-            )
-        return self.ok(run, findings, notes)
+        return self.ok(run, findings, _error_notes(data.get("errors")))
 
     def _finding(
         self, ctx: ScanContext, item: dict[str, Any], seen: dict[tuple[str, str, str], int]
@@ -178,6 +179,70 @@ class SemgrepAdapter(ScannerAdapter):
             commit=ctx.commit,
             extra={"references": _as_list(meta.get("references"))},
         )
+
+
+def _error_type(error: dict[str, Any]) -> str:
+    """Semgrep writes the type as ``"SyntaxError"`` or as ``["PartialParsing", [locations]]``."""
+    kind = error.get("type")
+    if isinstance(kind, (list, tuple)):
+        kind = kind[0] if kind else ""
+    return kind if isinstance(kind, str) else ""
+
+
+def _error_path(error: dict[str, Any]) -> str:
+    path = error.get("path")
+    if not isinstance(path, str) or not path:
+        spans = error.get("spans")
+        first = spans[0] if isinstance(spans, list) and spans else None
+        path = first.get("file") if isinstance(first, dict) else None
+    return repo_relative(path) if isinstance(path, str) and path else "(unknown file)"
+
+
+def _listed(paths: list[str]) -> str:
+    shown = ", ".join(p[:MAX_NOTE_PATH_CHARS] for p in paths[:MAX_NOTE_PATHS])
+    more = len(paths) - MAX_NOTE_PATHS
+    return f"{shown} (+{more} more)" if more > 0 else shown
+
+
+def _error_notes(errors: Any) -> list[str]:
+    """Turn Semgrep's ``errors`` array into notes a developer can act on.
+
+    A file Semgrep could only partly parse (``PartialParsing``) or not parse at all is analysed
+    incompletely, so a clean result for it proves less than it seems to. Paths are distinct and
+    repository-relative; the container's /src prefix is stripped like everywhere else.
+    """
+    if not isinstance(errors, list):
+        return []
+    partial: set[str] = set()
+    unparsed: set[str] = set()
+    other = 0
+    for error in errors:
+        if not isinstance(error, dict):
+            other += 1
+            continue
+        kind = _error_type(error)
+        if kind == PARTIAL_PARSE_ERROR:
+            partial.add(_error_path(error))
+        elif kind in SYNTAX_ERRORS:
+            unparsed.add(_error_path(error))
+        else:
+            other += 1
+
+    notes = []
+    if unparsed:
+        notes.append(
+            f"{len(unparsed)} file(s) could not be parsed, so they were not analysed: "
+            f"{_listed(sorted(unparsed))}"
+        )
+    partial -= unparsed  # the worse state wins
+    if partial:
+        notes.append(
+            f"{len(partial)} file(s) were only partly parsed, so findings in them may be "
+            f"missing: {_listed(sorted(partial))}"
+        )
+    if other:
+        notes.append(f"semgrep reported {other} other non-fatal error(s)")
+    return notes
 
 
 def _rule_id(check_id: str) -> str:

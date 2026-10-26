@@ -24,6 +24,8 @@ MAX_ANNOTATIONS = 500
 ANNOTATION_BATCH = 50
 TOP_FINDINGS_IN_SUMMARY = 15
 TOP_FINDINGS_IN_COMMENT = 10
+MAX_NOTES = 15
+MAX_NOTE_CHARS = 700  # room for a note that lists a few file paths
 FOOTER = (
     "newsoc reports technical evidence from automated scanners. It is not a certification and "
     "does not show that a system is secure or compliant."
@@ -62,6 +64,18 @@ def md_text(text: str, limit: int = 300) -> str:
     flat = flat.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     flat = flat.replace("|", "\\|").replace("`", "'").replace("@", "@​")
     return flat if len(flat) <= limit else flat[: limit - 1] + "…"
+
+
+def all_notes(outcome: PolicyOutcome, results: list[ScanResult]) -> list[str]:
+    """Policy and pipeline notes first, then what each scanner said about its own run.
+
+    A scanner's notes (files it could only partly parse, hits it ignored) are not copied into
+    ``PolicyOutcome.notes`` by the policy engine, so they are gathered here. Repeats are dropped.
+    """
+    seen: dict[str, str] = {}
+    for note in (*outcome.notes, *(n for r in results for n in r.notes)):
+        seen.setdefault(" ".join(note.split()), note)
+    return list(seen.values())
 
 
 def _sort_key(d: Decision) -> tuple[int, int, str, int]:
@@ -207,8 +221,10 @@ def _summary(
             f" of {len(shown)})",
         ]
         lines += [_finding_line(d) for d in shown[:TOP_FINDINGS_IN_SUMMARY]]
-    if outcome.notes:
-        lines += ["", "### Notes"] + [f"- {md_text(n, 300)}" for n in outcome.notes]
+    if notes := all_notes(outcome, results):
+        lines += ["", "### Notes"] + [f"- {md_text(n, MAX_NOTE_CHARS)}" for n in notes[:MAX_NOTES]]
+        if len(notes) > MAX_NOTES:
+            lines.append(f"- ({len(notes) - MAX_NOTES} more note(s) not shown)")
     versions = ", ".join(
         sorted({f"{r.scanner} {r.tool_version}" for r in results if r.tool_version})
     )

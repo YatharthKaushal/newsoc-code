@@ -27,6 +27,7 @@ from newsoc_code.github.signature import sign
 from newsoc_code.policy.engine import Conclusion, PolicyOutcome, evaluate
 from newsoc_code.policy.loader import PolicyLoad, load_policy
 from newsoc_code.policy.schema import Mode
+from newsoc_code.report.render import all_notes
 from newsoc_code.report.sarif import to_sarif
 from newsoc_code.runner.docker import DockerRunner, RootUserRefused, resolve_user
 from newsoc_code.runner.image import ImageBuildError, ensure_image
@@ -138,7 +139,7 @@ def _print(results: list[ScanResult], outcome: PolicyOutcome) -> None:
                 f"{f.message[:70]}"
             )
     typer.echo()
-    for note in outcome.notes:
+    for note in all_notes(outcome, results):
         typer.secho(f"note: {note}", fg="yellow")
     typer.secho(
         f"Result: {outcome.conclusion.value.upper()}  {outcome.title}",
