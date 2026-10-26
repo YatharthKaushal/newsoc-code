@@ -1,0 +1,26 @@
+rules:
+  - id: newsoc.js.react-dangerously-set-inner-html
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      dangerouslySetInnerHTML is given a non-literal value. If it contains user input this is cross-site scripting. Sanitise with DOMPurify or avoid raw HTML.
+    patterns:
+      - pattern: |
+          <$EL dangerouslySetInnerHTML={{__html: $X}} />
+      - pattern-not: |
+          <$EL dangerouslySetInnerHTML={{__html: "..."}} />
+      - pattern-not: |
+          <$EL dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(...)}} />
+      - pattern-not: |
+          <$EL dangerouslySetInnerHTML={{__html: sanitizeHtml(...)}} />
+      - pattern-not: |
+          <$EL dangerouslySetInnerHTML={{__html: `...`}} />
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"
+      owasp:
+        - "A03:2021 - Injection"
+      severity: medium
+      confidence: MEDIUM
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

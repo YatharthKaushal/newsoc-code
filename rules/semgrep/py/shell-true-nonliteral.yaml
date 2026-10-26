@@ -1,0 +1,20 @@
+rules:
+  - id: newsoc.py.shell-true-nonliteral
+    languages: [python]
+    severity: WARNING
+    message: >-
+      A subprocess call uses shell=True with a command that is not a fixed string. If any part is attacker-controlled this is command injection. Pass an argument list instead.
+    patterns:
+      - pattern: |
+          subprocess.$F($CMD, ..., shell=True, ...)
+      - pattern-not: |
+          subprocess.$F("...", ..., shell=True, ...)
+    metadata:
+      cwe:
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      owasp:
+        - "A03:2021 - Injection"
+      severity: medium
+      confidence: MEDIUM
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

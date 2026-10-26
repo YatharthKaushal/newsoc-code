@@ -1,0 +1,19 @@
+rules:
+  - id: newsoc.py.csrf-exempt
+    languages: [python]
+    severity: WARNING
+    message: >-
+      A view is exempt from CSRF protection. This is sometimes right (webhooks, token APIs) but must be a deliberate decision that is reviewed.
+    pattern: |
+      @csrf_exempt
+      def $F(...):
+          ...
+    metadata:
+      cwe:
+        - "CWE-352: Cross-Site Request Forgery (CSRF)"
+      owasp:
+        - "A01:2021 - Broken Access Control"
+      severity: low
+      confidence: LOW
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

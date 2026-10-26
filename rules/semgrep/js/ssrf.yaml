@@ -1,0 +1,41 @@
+rules:
+  - id: newsoc.js.ssrf
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Request data controls the URL of an outgoing request (server-side request forgery). Validate against an allow-list of hosts.
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.query
+              - pattern: $REQ.body
+              - pattern: $REQ.params
+              - pattern: $REQ.headers
+              - pattern: $REQ.cookies
+              - pattern: $REQ.url
+              - pattern: $REQ.originalUrl
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(req|request)$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: axios.get($U, ...)
+              - pattern: axios.post($U, ...)
+              - pattern: axios($U, ...)
+              - pattern: fetch($U, ...)
+              - pattern: http.get($U, ...)
+              - pattern: https.get($U, ...)
+              - pattern: got($U, ...)
+              - pattern: request($U, ...)
+          - focus-metavariable: $U
+    metadata:
+      cwe:
+        - "CWE-918: Server-Side Request Forgery (SSRF)"
+      owasp:
+        - "A10:2021 - Server-Side Request Forgery"
+      severity: high
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

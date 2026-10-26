@@ -1,0 +1,71 @@
+[project]
+name = "newsoc-code"
+version = "0.1.0"
+description = "newsoc Code arm: a GitHub App that scans pushes and pull requests for security issues and gates merges by policy"
+authors = [
+    { name = "Yatharth Kaushal", email = "yatharthkaushal@proton.me" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.20.1",
+    "fastapi>=0.115",
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "pathspec>=1.1.1",
+    "psycopg[binary]>=3",
+    "pydantic>=2",
+    "pydantic-settings>=2.16.1",
+    "pyjwt[crypto]>=2.9",
+    "pyyaml>=6.0.3",
+    "sqlalchemy>=2",
+    "typer>=0.27.3",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+newsoc = "newsoc_code.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.170.11",
+    "jsonschema>=4.26.0",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.1",
+    "respx>=0.23.1",
+    "ruff>=0.17.2",
+    "types-pyyaml>=6.0.12.20260906",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests/fixtures"]
+addopts = "-ra --strict-markers"
+markers = [
+    "docker: needs a usable Docker daemon (skipped when unavailable)",
+    "pg: needs the dev Postgres from docker-compose (skipped when unreachable)",
+    "e2e: needs network access and a GitHub test repository",
+]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = ["S101"]  # asserts are fine in tests; production code does not rely on them
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B011"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src"]
+plugins = ["pydantic.mypy"]

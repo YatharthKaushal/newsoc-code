@@ -1,0 +1,25 @@
+rules:
+  - id: newsoc.js.inner-html-assignment
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      innerHTML or document.write is given a non-literal value. If it contains user input this is cross-site scripting. Prefer textContent.
+    patterns:
+      - pattern-either:
+          - pattern: $EL.innerHTML = $X
+          - pattern: $EL.outerHTML = $X
+          - pattern: document.write($X)
+      - pattern-not: $EL.innerHTML = "..."
+      - pattern-not: $EL.outerHTML = "..."
+      - pattern-not: document.write("...")
+      - pattern-not: $EL.innerHTML = DOMPurify.sanitize(...)
+      - pattern-not: $EL.innerHTML = ""
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"
+      owasp:
+        - "A03:2021 - Injection"
+      severity: medium
+      confidence: LOW
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

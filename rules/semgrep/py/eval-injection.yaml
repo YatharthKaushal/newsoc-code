@@ -1,0 +1,46 @@
+rules:
+  - id: newsoc.py.eval-injection
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Request data is evaluated as Python code. Never pass user input to eval or exec; use ast.literal_eval for literals.
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.args
+              - pattern: $REQ.form
+              - pattern: $REQ.json
+              - pattern: $REQ.values
+              - pattern: $REQ.cookies
+              - pattern: $REQ.headers
+              - pattern: $REQ.data
+              - pattern: $REQ.files
+              - pattern: $REQ.GET
+              - pattern: $REQ.POST
+              - pattern: $REQ.body
+              - pattern: $REQ.get_json(...)
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(request|req)$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  eval($X, ...)
+              - pattern: |
+                  exec($X, ...)
+          - focus-metavariable: $X
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: |
+              ast.literal_eval(...)
+    metadata:
+      cwe:
+        - "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')"
+      owasp:
+        - "A03:2021 - Injection"
+      severity: critical
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

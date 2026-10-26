@@ -1,0 +1,48 @@
+rules:
+  - id: newsoc.py.pickle-untrusted
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Request data is unpickled. Unpickling attacker-controlled bytes executes arbitrary code. Use JSON or another data-only format.
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.args
+              - pattern: $REQ.form
+              - pattern: $REQ.json
+              - pattern: $REQ.values
+              - pattern: $REQ.cookies
+              - pattern: $REQ.headers
+              - pattern: $REQ.data
+              - pattern: $REQ.files
+              - pattern: $REQ.GET
+              - pattern: $REQ.POST
+              - pattern: $REQ.body
+              - pattern: $REQ.get_json(...)
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(request|req)$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  pickle.loads($X, ...)
+              - pattern: |
+                  pickle.load($X, ...)
+              - pattern: |
+                  cPickle.loads($X, ...)
+              - pattern: |
+                  marshal.loads($X)
+              - pattern: |
+                  dill.loads($X, ...)
+          - focus-metavariable: $X
+    metadata:
+      cwe:
+        - "CWE-502: Deserialization of Untrusted Data"
+      owasp:
+        - "A08:2021 - Software and Data Integrity Failures"
+      severity: critical
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

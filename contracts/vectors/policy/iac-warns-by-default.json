@@ -1,0 +1,34 @@
+{
+  "name": "iac-warns-by-default",
+  "description": "Infrastructure findings only warn unless the repository opts in.",
+  "policy_yaml": "mode: enforce\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "iac-scanner",
+      "category": "iac",
+      "status": "ok",
+      "reason": null,
+      "findings": [
+        {
+          "fingerprint": "i1",
+          "category": "iac",
+          "rule_id": "r1",
+          "severity": "critical",
+          "confidence": "high",
+          "path": "src/a.js",
+          "cwe": [],
+          "vuln_ids": []
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "conclusion": "neutral",
+    "title": "Findings reported; none block",
+    "outcomes": {
+      "i1": "warned"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "clean-scan-succeeds",
+  "description": "Nothing found, every applicable scanner ran.",
+  "policy_yaml": "mode: enforce\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "ok",
+      "reason": null,
+      "findings": []
+    },
+    {
+      "scanner": "secrets-scanner",
+      "category": "secrets",
+      "status": "ok",
+      "reason": null,
+      "findings": []
+    }
+  ],
+  "expected": {
+    "conclusion": "success",
+    "title": "No new findings",
+    "outcomes": {}
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "waiver-expired-the-day-after",
+  "description": "The day after expiry the waiver is ignored.",
+  "policy_yaml": "mode: enforce\nwaivers:\n  - rule: CWE-78\n    path: '**'\n    expires: 2026-10-25\n    approved_by: sec\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "ok",
+      "reason": null,
+      "findings": [
+        {
+          "fingerprint": "a1",
+          "category": "sast",
+          "rule_id": "r1",
+          "severity": "high",
+          "confidence": "high",
+          "path": "src/a.js",
+          "cwe": [
+            "CWE-78"
+          ],
+          "vuln_ids": []
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "conclusion": "failure",
+    "title": "1 blocking finding(s)",
+    "outcomes": {
+      "a1": "blocked"
+    }
+  }
+}

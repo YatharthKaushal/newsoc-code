@@ -1,0 +1,24 @@
+rules:
+  - id: newsoc.py.sql-string-building
+    languages: [python]
+    severity: WARNING
+    message: >-
+      An SQL statement is built with string formatting or concatenation. If any part is attacker-controlled this is SQL injection. Use placeholders.
+    pattern-either:
+      - pattern: |
+          $C.execute(f"...{$X}...")
+      - pattern: |
+          $C.execute("..." % $X)
+      - pattern: |
+          $C.execute("...".format(...))
+      - pattern: |
+          $C.execute("..." + $X)
+    metadata:
+      cwe:
+        - "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+      owasp:
+        - "A03:2021 - Injection"
+      severity: medium
+      confidence: LOW
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

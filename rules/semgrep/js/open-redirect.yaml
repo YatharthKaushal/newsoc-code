@@ -1,0 +1,43 @@
+rules:
+  - id: newsoc.js.open-redirect
+    mode: taint
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Request data decides where the user is redirected. Validate the target against an allow-list of paths or hosts.
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.query
+              - pattern: $REQ.body
+              - pattern: $REQ.params
+              - pattern: $REQ.headers
+              - pattern: $REQ.cookies
+              - pattern: $REQ.url
+              - pattern: $REQ.originalUrl
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(req|request)$
+    pattern-sinks:
+      - pattern-either:
+          - pattern: $RES.redirect(...)
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: isSafeRedirect(...)
+          - pattern: validateRedirect(...)
+          - patterns:
+              - pattern: $PREFIX + $X
+              - metavariable-regex:
+                  metavariable: $PREFIX
+                  regex: ^["']/[^/"']
+          - pattern: |
+              isSafeRedirect(...) ? $X : $DEFAULT
+    metadata:
+      cwe:
+        - "CWE-601: URL Redirection to Untrusted Site ('Open Redirect')"
+      owasp:
+        - "A01:2021 - Broken Access Control"
+      severity: medium
+      confidence: MEDIUM
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

@@ -1,0 +1,34 @@
+{
+  "name": "observe-never-fails",
+  "description": "The same finding in observe mode is reported but passes.",
+  "policy_yaml": "mode: observe\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "ok",
+      "reason": null,
+      "findings": [
+        {
+          "fingerprint": "a1",
+          "category": "sast",
+          "rule_id": "r1",
+          "severity": "high",
+          "confidence": "high",
+          "path": "src/a.js",
+          "cwe": [],
+          "vuln_ids": []
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "conclusion": "neutral",
+    "title": "Observe mode: 1 finding(s) would block",
+    "outcomes": {
+      "a1": "would_block"
+    }
+  }
+}

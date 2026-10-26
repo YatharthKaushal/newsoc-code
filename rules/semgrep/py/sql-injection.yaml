@@ -1,0 +1,48 @@
+rules:
+  - id: newsoc.py.sql-injection
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Request data is built into an SQL string. Use parameterised queries (placeholders with a parameters argument).
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.args
+              - pattern: $REQ.form
+              - pattern: $REQ.json
+              - pattern: $REQ.values
+              - pattern: $REQ.cookies
+              - pattern: $REQ.headers
+              - pattern: $REQ.data
+              - pattern: $REQ.files
+              - pattern: $REQ.GET
+              - pattern: $REQ.POST
+              - pattern: $REQ.body
+              - pattern: $REQ.get_json(...)
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(request|req)$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  $C.execute($Q, ...)
+              - pattern: |
+                  $C.executemany($Q, ...)
+              - pattern: |
+                  $C.executescript($Q)
+              - pattern: |
+                  $M.objects.raw($Q, ...)
+              - pattern: |
+                  text($Q)
+          - focus-metavariable: $Q
+    metadata:
+      cwe:
+        - "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+      owasp:
+        - "A03:2021 - Injection"
+      severity: high
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

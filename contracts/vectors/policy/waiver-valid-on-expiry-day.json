@@ -1,0 +1,36 @@
+{
+  "name": "waiver-valid-on-expiry-day",
+  "description": "A waiver is valid through its expiry date, inclusive.",
+  "policy_yaml": "mode: enforce\nwaivers:\n  - rule: CWE-78\n    path: '**'\n    expires: 2026-10-26\n    approved_by: sec\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "ok",
+      "reason": null,
+      "findings": [
+        {
+          "fingerprint": "a1",
+          "category": "sast",
+          "rule_id": "r1",
+          "severity": "high",
+          "confidence": "high",
+          "path": "src/a.js",
+          "cwe": [
+            "CWE-78"
+          ],
+          "vuln_ids": []
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "conclusion": "success",
+    "title": "No new findings",
+    "outcomes": {
+      "a1": "waived"
+    }
+  }
+}

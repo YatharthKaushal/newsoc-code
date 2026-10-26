@@ -1,0 +1,23 @@
+rules:
+  - id: newsoc.js.weak-cipher
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      A weak or deprecated cipher mode is used (createCipher derives a poor key; ECB leaks patterns). Use createCipheriv with AES-GCM.
+    pattern-either:
+      - pattern: crypto.createCipher(...)
+      - pattern: crypto.createDecipher(...)
+      - patterns:
+          - pattern: crypto.createCipheriv($ALG, ...)
+          - metavariable-regex:
+              metavariable: $ALG
+              regex: (?i)^['"].*(ecb|des|rc4).*['"]$
+    metadata:
+      cwe:
+        - "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+      owasp:
+        - "A02:2021 - Cryptographic Failures"
+      severity: high
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

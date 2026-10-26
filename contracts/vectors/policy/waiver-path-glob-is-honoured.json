@@ -1,0 +1,45 @@
+{
+  "name": "waiver-path-glob-is-honoured",
+  "description": "Only the files under legacy/ are waived.",
+  "policy_yaml": "mode: enforce\nwaivers:\n  - rule: r1\n    path: 'legacy/**'\n    expires: 2026-12-31\n    approved_by: sec\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "ok",
+      "reason": null,
+      "findings": [
+        {
+          "fingerprint": "a1",
+          "category": "sast",
+          "rule_id": "r1",
+          "severity": "high",
+          "confidence": "high",
+          "path": "legacy/x.js",
+          "cwe": [],
+          "vuln_ids": []
+        },
+        {
+          "fingerprint": "a2",
+          "category": "sast",
+          "rule_id": "r1",
+          "severity": "high",
+          "confidence": "high",
+          "path": "src/y.js",
+          "cwe": [],
+          "vuln_ids": []
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "conclusion": "failure",
+    "title": "1 blocking finding(s)",
+    "outcomes": {
+      "a1": "waived",
+      "a2": "blocked"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+rules:
+  - id: newsoc.py.jwt-verify-disabled
+    languages: [python]
+    severity: ERROR
+    message: >-
+      A JSON Web Token is decoded without verifying its signature, so anyone can forge claims. Always verify the signature with the expected algorithms.
+    pattern-either:
+      - pattern: |
+          jwt.decode($T, ..., options={..., "verify_signature": False, ...}, ...)
+      - pattern: |
+          jwt.decode($T, ..., verify=False, ...)
+      - pattern: |
+          jwt.decode($T, options={"verify_signature": False})
+    metadata:
+      cwe:
+        - "CWE-347: Improper Verification of Cryptographic Signature"
+      owasp:
+        - "A02:2021 - Cryptographic Failures"
+      severity: critical
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

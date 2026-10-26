@@ -1,0 +1,34 @@
+{
+  "name": "enforce-blocks-new-high-severity",
+  "description": "A new high-severity SAST finding fails the check in enforce mode.",
+  "policy_yaml": "mode: enforce\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "ok",
+      "reason": null,
+      "findings": [
+        {
+          "fingerprint": "a1",
+          "category": "sast",
+          "rule_id": "r1",
+          "severity": "high",
+          "confidence": "high",
+          "path": "src/a.js",
+          "cwe": [],
+          "vuln_ids": []
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "conclusion": "failure",
+    "title": "1 blocking finding(s)",
+    "outcomes": {
+      "a1": "blocked"
+    }
+  }
+}

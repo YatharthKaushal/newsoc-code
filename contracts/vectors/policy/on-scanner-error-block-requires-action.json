@@ -1,0 +1,21 @@
+{
+  "name": "on-scanner-error-block-requires-action",
+  "description": "on_scanner_error: block makes any blocking category fail closed.",
+  "policy_yaml": "mode: enforce\non_scanner_error: block\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "failed",
+      "reason": "boom",
+      "findings": []
+    }
+  ],
+  "expected": {
+    "conclusion": "action_required",
+    "title": "Not assessed: sast (re-run required)",
+    "outcomes": {}
+  }
+}

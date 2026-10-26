@@ -1,0 +1,40 @@
+rules:
+  - id: newsoc.js.eval-injection
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Request data is evaluated as code. Never pass user input to eval or the Function constructor.
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.query
+              - pattern: $REQ.body
+              - pattern: $REQ.params
+              - pattern: $REQ.headers
+              - pattern: $REQ.cookies
+              - pattern: $REQ.url
+              - pattern: $REQ.originalUrl
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(req|request)$
+    pattern-sinks:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: new Function(...)
+          - pattern: vm.runInNewContext(...)
+          - pattern: vm.runInThisContext(...)
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: parseInt(...)
+          - pattern: parseFloat(...)
+          - pattern: Number(...)
+    metadata:
+      cwe:
+        - "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')"
+      owasp:
+        - "A03:2021 - Injection"
+      severity: critical
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

@@ -1,0 +1,28 @@
+{
+  "name": "other-scanner-failure-is-neutral-by-default",
+  "description": "A crashed SAST scanner passes (not success) unless on_scanner_error is block.",
+  "policy_yaml": "mode: enforce\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "failed",
+      "reason": "boom",
+      "findings": []
+    },
+    {
+      "scanner": "secrets-scanner",
+      "category": "secrets",
+      "status": "ok",
+      "reason": null,
+      "findings": []
+    }
+  ],
+  "expected": {
+    "conclusion": "neutral",
+    "title": "Not assessed: sast",
+    "outcomes": {}
+  }
+}

@@ -1,0 +1,52 @@
+rules:
+  - id: newsoc.js.nosql-injection
+    mode: taint
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Request data is used directly as a database query object. An attacker can send operators such as $ne or $where. Cast values to strings and whitelist fields.
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.query
+              - pattern: $REQ.body
+              - pattern: $REQ.params
+              - pattern: $REQ.headers
+              - pattern: $REQ.cookies
+              - pattern: $REQ.url
+              - pattern: $REQ.originalUrl
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(req|request)$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $COL.find($Q, ...)
+              - pattern: $COL.findOne($Q, ...)
+              - pattern: $COL.deleteOne($Q, ...)
+              - pattern: $COL.deleteMany($Q, ...)
+              - pattern: $COL.updateOne($Q, ...)
+              - pattern: $COL.updateMany($Q, ...)
+              - pattern: $COL.countDocuments($Q, ...)
+          - pattern-not: |
+              $COL.$M({..., where: $W, ...}, ...)
+          - focus-metavariable: $Q
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: String(...)
+          - pattern: Number(...)
+          - pattern: parseInt(...)
+          - pattern: |
+              `...`
+          - pattern: parseInt(...)
+          - pattern: parseFloat(...)
+          - pattern: Number(...)
+    metadata:
+      cwe:
+        - "CWE-943: Improper Neutralization of Special Elements in Data Query Logic"
+      owasp:
+        - "A03:2021 - Injection"
+      severity: medium
+      confidence: LOW
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

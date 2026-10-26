@@ -1,0 +1,36 @@
+{
+  "name": "existing-finding-is-baselined",
+  "description": "A finding already on the base branch does not block.",
+  "policy_yaml": "mode: enforce\n",
+  "today": "2026-10-26",
+  "baseline": [
+    "a1"
+  ],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "ok",
+      "reason": null,
+      "findings": [
+        {
+          "fingerprint": "a1",
+          "category": "sast",
+          "rule_id": "r1",
+          "severity": "high",
+          "confidence": "high",
+          "path": "src/a.js",
+          "cwe": [],
+          "vuln_ids": []
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "conclusion": "success",
+    "title": "No new findings",
+    "outcomes": {
+      "a1": "baselined"
+    }
+  }
+}

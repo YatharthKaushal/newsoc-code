@@ -1,0 +1,20 @@
+rules:
+  - id: newsoc.py.xxe-lxml
+    languages: [python]
+    severity: ERROR
+    message: >-
+      The XML parser resolves external entities, which allows XML external entity (XXE) attacks. Leave resolve_entities=False and disable network access.
+    pattern-either:
+      - pattern: |
+          etree.XMLParser(..., resolve_entities=True, ...)
+      - pattern: |
+          lxml.etree.XMLParser(..., resolve_entities=True, ...)
+    metadata:
+      cwe:
+        - "CWE-611: Improper Restriction of XML External Entity Reference"
+      owasp:
+        - "A05:2021 - Security Misconfiguration"
+      severity: high
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

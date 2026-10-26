@@ -1,0 +1,22 @@
+rules:
+  - id: newsoc.js.tls-verification-disabled
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      TLS certificate verification is turned off, so connections can be intercepted. Remove the override and fix the certificate instead.
+    pattern-either:
+      - pattern: |
+          {..., rejectUnauthorized: false, ...}
+      - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
+      - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0
+      - pattern: |
+          {..., strictSSL: false, ...}
+    metadata:
+      cwe:
+        - "CWE-295: Improper Certificate Validation"
+      owasp:
+        - "A02:2021 - Cryptographic Failures"
+      severity: high
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

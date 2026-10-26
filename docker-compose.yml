@@ -1,0 +1,21 @@
+# Local development services. Production uses deploy/compose.prod.yml.
+# Postgres listens on 127.0.0.1:55432 only. These credentials are for local development.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: newsoc
+      POSTGRES_PASSWORD: newsoc
+      POSTGRES_DB: newsoc
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - newsoc_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U newsoc -d newsoc"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  newsoc_pgdata:

@@ -1,0 +1,52 @@
+rules:
+  - id: newsoc.py.path-traversal
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Request data is used as a file path. An attacker can read or write files outside the intended directory. Use werkzeug.utils.secure_filename or resolve against a fixed base and check the result.
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.args
+              - pattern: $REQ.form
+              - pattern: $REQ.json
+              - pattern: $REQ.values
+              - pattern: $REQ.cookies
+              - pattern: $REQ.headers
+              - pattern: $REQ.data
+              - pattern: $REQ.files
+              - pattern: $REQ.GET
+              - pattern: $REQ.POST
+              - pattern: $REQ.body
+              - pattern: $REQ.get_json(...)
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(request|req)$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  open($P, ...)
+              - pattern: |
+                  send_file($P, ...)
+              - pattern: |
+                  shutil.copy($P, ...)
+              - pattern: |
+                  os.remove($P)
+          - focus-metavariable: $P
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: |
+              secure_filename(...)
+          - pattern: |
+              os.path.basename(...)
+    metadata:
+      cwe:
+        - "CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+      owasp:
+        - "A01:2021 - Broken Access Control"
+      severity: high
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

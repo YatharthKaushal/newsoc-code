@@ -1,0 +1,24 @@
+rules:
+  - id: newsoc.py.tls-verify-disabled
+    languages: [python]
+    severity: ERROR
+    message: >-
+      TLS certificate verification is disabled, so connections can be intercepted. Remove verify=False and fix the certificate or CA bundle instead.
+    pattern-either:
+      - pattern: |
+          requests.$M(..., verify=False, ...)
+      - pattern: |
+          httpx.$M(..., verify=False, ...)
+      - pattern: |
+          ssl._create_unverified_context(...)
+      - pattern: |
+          $S.verify = False
+    metadata:
+      cwe:
+        - "CWE-295: Improper Certificate Validation"
+      owasp:
+        - "A02:2021 - Cryptographic Failures"
+      severity: high
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/newsoc/policy.schema.json",
+  "title": ".secpolicy.yml (version 1, MVP subset)",
+  "description": "Unknown top-level keys are allowed (they produce a warning, not an error). Waiver dates are validated as YYYY-MM-DD strings: convert YAML timestamps to strings first. The rule that a waiver expires at most 365 days from today is checked by the loader, not by this schema.",
+  "type": "object",
+  "properties": {
+    "version": { "const": 1 },
+    "profile": { "type": "string" },
+    "mode": { "enum": ["observe", "enforce"] },
+    "on_scanner_error": { "enum": ["warn", "block", "suggest-fix", "auto-fix-pr"] },
+    "gates": {
+      "type": "object",
+      "properties": {
+        "merge": {
+          "type": "object",
+          "properties": {
+            "block_on": {
+              "type": "array",
+              "items": { "enum": ["critical", "high", "medium", "low"] },
+              "uniqueItems": true
+            },
+            "new_findings_only": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "actions": {
+      "type": "object",
+      "properties": {
+        "default": { "$ref": "#/definitions/action" },
+        "sast": { "$ref": "#/definitions/action" },
+        "sca": { "$ref": "#/definitions/action" },
+        "secrets": { "$ref": "#/definitions/action" },
+        "iac": { "$ref": "#/definitions/action" }
+      }
+    },
+    "waivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule", "expires", "approved_by"],
+        "properties": {
+          "rule": { "type": "string", "minLength": 1 },
+          "path": { "type": "string" },
+          "expires": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+          "approved_by": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "action": { "enum": ["warn", "block", "suggest-fix", "auto-fix-pr"] }
+  }
+}

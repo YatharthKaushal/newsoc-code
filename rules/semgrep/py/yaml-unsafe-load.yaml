@@ -1,0 +1,30 @@
+rules:
+  - id: newsoc.py.yaml-unsafe-load
+    languages: [python]
+    severity: ERROR
+    message: >-
+      yaml.load is called without a safe loader, which can construct arbitrary Python objects. Use yaml.safe_load or Loader=yaml.SafeLoader.
+    pattern-either:
+      - pattern: |
+          yaml.load($X)
+      - pattern: |
+          yaml.load($X, Loader=yaml.Loader)
+      - pattern: |
+          yaml.load($X, Loader=yaml.UnsafeLoader)
+      - pattern: |
+          yaml.load($X, Loader=yaml.FullLoader)
+      - pattern: |
+          yaml.load($X, yaml.Loader)
+      - pattern: |
+          yaml.load($X, yaml.UnsafeLoader)
+      - pattern: |
+          yaml.load($X, yaml.FullLoader)
+    metadata:
+      cwe:
+        - "CWE-502: Deserialization of Untrusted Data"
+      owasp:
+        - "A08:2021 - Software and Data Integrity Failures"
+      severity: high
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

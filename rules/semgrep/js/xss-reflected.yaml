@@ -1,0 +1,57 @@
+rules:
+  - id: newsoc.js.xss-reflected
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Request data is written into an HTML response without escaping. Escape output or use a templating engine that escapes by default.
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.query
+              - pattern: $REQ.body
+              - pattern: $REQ.params
+              - pattern: $REQ.headers
+              - pattern: $REQ.cookies
+              - pattern: $REQ.url
+              - pattern: $REQ.originalUrl
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(req|request)$
+    options:
+      taint_assume_safe_indexes: true
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $RES.send($X)
+              - pattern: $RES.write($X)
+              - pattern: $RES.end($X)
+          - pattern-not: $RES.send({...})
+          - pattern-not: $RES.write({...})
+          - pattern-not: $RES.end({...})
+          - metavariable-regex:
+              metavariable: $RES
+              regex: ^(res|response)(\.\w+\([^)]*\))*$
+          - focus-metavariable: $X
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: escape(...)
+          - pattern: escapeHtml(...)
+          - pattern: sanitizeHtml(...)
+          - pattern: DOMPurify.sanitize(...)
+          - pattern: encodeURIComponent(...)
+          - pattern: he.encode(...)
+          - pattern: validator.escape(...)
+          - pattern: parseInt(...)
+          - pattern: parseFloat(...)
+          - pattern: Number(...)
+          - pattern: JSON.stringify(...)
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"
+      owasp:
+        - "A03:2021 - Injection"
+      severity: high
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

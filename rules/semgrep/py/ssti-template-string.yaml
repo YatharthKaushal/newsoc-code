@@ -1,0 +1,44 @@
+rules:
+  - id: newsoc.py.ssti-template-string
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Request data is used as a template. Server-side template injection allows code execution. Pass user data as template variables, never as the template.
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.args
+              - pattern: $REQ.form
+              - pattern: $REQ.json
+              - pattern: $REQ.values
+              - pattern: $REQ.cookies
+              - pattern: $REQ.headers
+              - pattern: $REQ.data
+              - pattern: $REQ.files
+              - pattern: $REQ.GET
+              - pattern: $REQ.POST
+              - pattern: $REQ.body
+              - pattern: $REQ.get_json(...)
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(request|req)$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  render_template_string($T, ...)
+              - pattern: |
+                  jinja2.Template($T, ...)
+              - pattern: |
+                  Template($T, ...)
+          - focus-metavariable: $T
+    metadata:
+      cwe:
+        - "CWE-1336: Improper Neutralization of Special Elements Used in a Template Engine"
+      owasp:
+        - "A03:2021 - Injection"
+      severity: critical
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

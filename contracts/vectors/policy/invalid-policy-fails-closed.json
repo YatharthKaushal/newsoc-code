@@ -1,0 +1,21 @@
+{
+  "name": "invalid-policy-fails-closed",
+  "description": "A broken policy file fails the check and applies strict defaults.",
+  "policy_yaml": "mode: yolo\n",
+  "today": "2026-10-26",
+  "baseline": [],
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "ok",
+      "reason": null,
+      "findings": []
+    }
+  ],
+  "expected": {
+    "conclusion": "failure",
+    "title": "Policy invalid; strict defaults applied until it is fixed",
+    "outcomes": {}
+  }
+}

@@ -1,0 +1,21 @@
+rules:
+  - id: newsoc.py.flask-debug-enabled
+    languages: [python]
+    severity: WARNING
+    message: >-
+      The application runs with debug=True, which exposes an interactive debugger that allows code execution. Never enable it in production.
+    patterns:
+      - pattern: |
+          $APP.run(..., debug=True, ...)
+      - metavariable-regex:
+          metavariable: $APP
+          regex: ^(app|application|api|server|flask_app)$
+    metadata:
+      cwe:
+        - "CWE-489: Active Debug Code"
+      owasp:
+        - "A05:2021 - Security Misconfiguration"
+      severity: medium
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

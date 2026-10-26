@@ -1,0 +1,34 @@
+{
+  "name": "baseline-unavailable-treats-all-as-new",
+  "description": "Without a baseline everything counts as new.",
+  "policy_yaml": "mode: enforce\n",
+  "today": "2026-10-26",
+  "baseline": null,
+  "results": [
+    {
+      "scanner": "sast-scanner",
+      "category": "sast",
+      "status": "ok",
+      "reason": null,
+      "findings": [
+        {
+          "fingerprint": "a1",
+          "category": "sast",
+          "rule_id": "r1",
+          "severity": "high",
+          "confidence": "high",
+          "path": "src/a.js",
+          "cwe": [],
+          "vuln_ids": []
+        }
+      ]
+    }
+  ],
+  "expected": {
+    "conclusion": "failure",
+    "title": "1 blocking finding(s)",
+    "outcomes": {
+      "a1": "blocked"
+    }
+  }
+}

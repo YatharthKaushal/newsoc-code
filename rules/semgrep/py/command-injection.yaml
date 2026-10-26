@@ -1,0 +1,48 @@
+rules:
+  - id: newsoc.py.command-injection
+    mode: taint
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Request data reaches a shell command. An attacker can run arbitrary commands. Pass an argument list without shell=True and validate input.
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.args
+              - pattern: $REQ.form
+              - pattern: $REQ.json
+              - pattern: $REQ.values
+              - pattern: $REQ.cookies
+              - pattern: $REQ.headers
+              - pattern: $REQ.data
+              - pattern: $REQ.files
+              - pattern: $REQ.GET
+              - pattern: $REQ.POST
+              - pattern: $REQ.body
+              - pattern: $REQ.get_json(...)
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(request|req)$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: |
+                  os.system($C)
+              - pattern: |
+                  os.popen($C)
+              - pattern: |
+                  subprocess.getoutput($C)
+              - pattern: |
+                  subprocess.getstatusoutput($C)
+              - pattern: |
+                  subprocess.$F($C, ..., shell=True, ...)
+          - focus-metavariable: $C
+    metadata:
+      cwe:
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"
+      owasp:
+        - "A03:2021 - Injection"
+      severity: critical
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

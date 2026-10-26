@@ -1,0 +1,187 @@
+{
+  "$defs": {
+    "AssessmentStatus": {
+      "description": "Per-finding and per-category status words; never \"compliant\" or \"secure\".",
+      "enum": [
+        "Finding",
+        "Verified",
+        "Manual evidence required",
+        "Not assessed"
+      ],
+      "title": "AssessmentStatus",
+      "type": "string"
+    },
+    "Category": {
+      "enum": [
+        "sast",
+        "sca",
+        "secrets",
+        "iac"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "Confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "description": "One normalised result from any scanner.",
+  "properties": {
+    "action_taken": {
+      "default": "none",
+      "title": "Action Taken",
+      "type": "string"
+    },
+    "category": {
+      "$ref": "#/$defs/Category"
+    },
+    "commit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Commit"
+    },
+    "confidence": {
+      "$ref": "#/$defs/Confidence"
+    },
+    "control_refs": {
+      "default": [],
+      "description": "Empty in the MVP",
+      "items": {
+        "type": "string"
+      },
+      "title": "Control Refs",
+      "type": "array"
+    },
+    "cwe": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Cwe",
+      "type": "array"
+    },
+    "end_line": {
+      "minimum": 1,
+      "title": "End Line",
+      "type": "integer"
+    },
+    "evidence": {
+      "default": [],
+      "description": "Up to a few redacted source lines or a one-line description",
+      "items": {
+        "type": "string"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "extra": {
+      "additionalProperties": true,
+      "title": "Extra",
+      "type": "object"
+    },
+    "fingerprint": {
+      "description": "Stable across line shifts; used for dedupe and baselines",
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    },
+    "path": {
+      "description": "Repository-relative POSIX path",
+      "title": "Path",
+      "type": "string"
+    },
+    "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+    },
+    "rule_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rule Version"
+    },
+    "scanner_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scanner Version"
+    },
+    "severity": {
+      "$ref": "#/$defs/Severity"
+    },
+    "source": {
+      "description": "Scanner that produced the finding, e.g. semgrep",
+      "title": "Source",
+      "type": "string"
+    },
+    "start_line": {
+      "minimum": 1,
+      "title": "Start Line",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/AssessmentStatus",
+      "default": "Finding"
+    },
+    "vuln_ids": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Vuln Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "source",
+    "category",
+    "rule_id",
+    "severity",
+    "confidence",
+    "path",
+    "start_line",
+    "end_line",
+    "message",
+    "fingerprint"
+  ],
+  "title": "Finding",
+  "type": "object"
+}

@@ -1,0 +1,22 @@
+rules:
+  - id: newsoc.js.jwt-none-algorithm
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      A JSON Web Token is signed or verified with the 'none' algorithm, which disables the signature. Always pin a real algorithm.
+    pattern-either:
+      - pattern: |
+          $JWT.sign($P, $K, {..., algorithm: "none", ...})
+      - pattern: |
+          $JWT.verify($T, $K, {..., algorithms: [..., "none", ...], ...})
+      - pattern: |
+          $JWT.verify($T, $K, {..., algorithm: "none", ...})
+    metadata:
+      cwe:
+        - "CWE-347: Improper Verification of Cryptographic Signature"
+      owasp:
+        - "A02:2021 - Cryptographic Failures"
+      severity: critical
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."

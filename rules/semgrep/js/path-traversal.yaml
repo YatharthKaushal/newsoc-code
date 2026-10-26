@@ -1,0 +1,51 @@
+rules:
+  - id: newsoc.js.path-traversal
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Request data is used as a file path. An attacker can read or write files outside the intended directory. Resolve against a fixed base and check the result, or use path.basename.
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern: $REQ.query
+              - pattern: $REQ.body
+              - pattern: $REQ.params
+              - pattern: $REQ.headers
+              - pattern: $REQ.cookies
+              - pattern: $REQ.url
+              - pattern: $REQ.originalUrl
+          - metavariable-regex:
+              metavariable: $REQ
+              regex: ^(req|request)$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: fs.readFile($P, ...)
+              - pattern: fs.readFileSync($P, ...)
+              - pattern: fs.createReadStream($P, ...)
+              - pattern: fs.writeFile($P, ...)
+              - pattern: fs.writeFileSync($P, ...)
+              - pattern: $RES.sendFile($P, ...)
+              - pattern: $RES.download($P, ...)
+          - pattern-not: |
+              $RES.sendFile($P, {..., root: $R, ...}, ...)
+          - pattern-not: |
+              $RES.download($P, {..., root: $R, ...}, ...)
+          - focus-metavariable: $P
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: path.basename(...)
+          - pattern: sanitizeFilename(...)
+          - pattern: parseInt(...)
+          - pattern: parseFloat(...)
+          - pattern: Number(...)
+    metadata:
+      cwe:
+        - "CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')"
+      owasp:
+        - "A01:2021 - Broken Access Control"
+      severity: high
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the CWE description; no registry rule consulted."
