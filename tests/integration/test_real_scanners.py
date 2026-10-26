@@ -99,6 +99,53 @@ def test_osv_offline_finds_vulnerable_dependencies(tmp_path, runner, make_ctx):
     assert any(f.severity is Severity.CRITICAL for f in result.findings)
 
 
+def _yarn_lock(*entries: tuple[str, str]) -> str:
+    blocks = [
+        f'{name}@{version}:\n  version "{version}"\n'
+        f'  resolved "https://registry.yarnpkg.com/{name}/-/{name}-{version}.tgz#{"0" * 40}"\n'
+        for name, version in entries
+    ]
+    return "# yarn lockfile v1\n\n\n" + "\n".join(blocks)
+
+
+@pytest.mark.skipif(
+    not os.environ.get("NEWSOC_OSV_DB"), reason="set NEWSOC_OSV_DB to an offline OSV database"
+)
+def test_osv_reports_a_dependency_once_when_two_lockfiles_of_a_directory_list_it(
+    tmp_path, runner, make_ctx
+):
+    """The real tool lists package-lock.json and yarn.lock as two sources; we report one finding."""
+    deps = (("lodash", "4.17.15"), ("minimist", "1.2.0"), ("express", "4.17.1"))
+    fx.make_js_app(tmp_path)  # package-lock.json at the root, the same three dependencies
+    fx.write(tmp_path / "yarn.lock", _yarn_lock(*deps))
+    fx.write(tmp_path / "apps" / "web" / "yarn.lock", _yarn_lock(*deps))  # another project
+    ctx = make_ctx(tmp_path, osv_db_dir=Path(os.environ["NEWSOC_OSV_DB"]))
+
+    result = run_adapter(OsvAdapter(), ctx, runner)
+
+    assert result.status is ScanStatus.OK, result.reason
+    sources = {
+        s["source"]["path"] for s in json.loads((ctx.out_dir / "osv.json").read_text())["results"]
+    }
+    assert {"/src/package-lock.json", "/src/yarn.lock", "/src/apps/web/yarn.lock"} <= sources
+    by_dir: dict[str, list] = {"": [], "apps/web": []}
+    for f in result.findings:
+        by_dir["apps/web" if f.path.startswith("apps/web/") else ""].append(f)
+    assert by_dir[""] and by_dir["apps/web"]
+    assert {f.path for f in by_dir[""]} == {
+        "package-lock.json"
+    }  # nothing left on the root yarn.lock
+    assert all(f.extra["also_in"] == ["yarn.lock"] for f in by_dir[""])
+    assert {f.path for f in by_dir["apps/web"]} == {"apps/web/yarn.lock"}
+    assert all(f.extra["also_in"] == [] for f in by_dir["apps/web"])
+    # one finding per (package, advisory) in each directory, and the two directories differ
+    keys = {d: [(f.extra["package"], f.rule_id) for f in fs] for d, fs in by_dir.items()}
+    assert len(keys[""]) == len(set(keys[""])) and sorted(keys[""]) == sorted(keys["apps/web"])
+    assert {f.fingerprint for f in by_dir[""]}.isdisjoint(
+        {f.fingerprint for f in by_dir["apps/web"]}
+    )
+
+
 def test_one_broken_scanner_does_not_hide_the_others(tmp_path, runner, make_ctx):
     """Missing OSV database: SCA fails loudly while the other categories are still assessed."""
     fx.make_mixed(tmp_path)

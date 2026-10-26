@@ -6,6 +6,7 @@ import json
 
 import builders as fx
 
+from newsoc_code.findings.fingerprint import sca_fingerprint
 from newsoc_code.findings.schema import Confidence, ScanStatus, Severity
 from newsoc_code.scanners.checkov import CheckovAdapter
 from newsoc_code.scanners.gitleaks import GitleaksAdapter
@@ -59,6 +60,12 @@ def test_osv_golden(tmp_path, make_ctx, place_report):
     assert all(f.start_line >= 1 for f in result.findings)
     # one finding per advisory group, never one per alias
     assert len({f.fingerprint for f in result.findings}) == len(result.findings)
+    # one lockfile per ecosystem here, so nothing is merged and nothing is "also in" elsewhere
+    assert all(f.extra["also_in"] == [] for f in result.findings)
+    # the fingerprint is built from the project directory (the repository root), not the lockfile
+    assert {f.fingerprint for f in by_pkg["pyyaml"]} == {
+        sca_fingerprint("PyPI", "pyyaml", "", "CVE-2020-1747")
+    }
 
 
 def test_checkov_golden(tmp_path, make_ctx, place_report):

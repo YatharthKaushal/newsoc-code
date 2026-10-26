@@ -52,6 +52,7 @@ from newsoc_code.db.models import (
 )
 from newsoc_code.db.session import session_scope
 from newsoc_code.findings import baseline as baselines
+from newsoc_code.findings.fingerprint import SCHEME_VERSION as FINGERPRINT_SCHEME
 from newsoc_code.findings.schema import ScanResult
 from newsoc_code.github.checks import publish_result
 from newsoc_code.github.client import MAX_FILES, Comparison, GitHubClient, GitHubError
@@ -161,9 +162,10 @@ def scanner_key(
     adapters: Sequence[ScannerAdapter], rules_ver: str | None, osv_snapshot: str
 ) -> str:
     """Identifies the scanners and data a baseline was produced with. A baseline made with
-    other tool versions, another rule pack or another vulnerability snapshot is not comparable."""
+    other tool versions, another rule pack, another vulnerability snapshot or another fingerprint
+    scheme is not comparable."""
     parts = sorted(f"{a.name}={a.pinned_version}" for a in adapters)
-    parts += [f"rules={rules_ver}", f"osv={osv_snapshot}"]
+    parts += [f"rules={rules_ver}", f"osv={osv_snapshot}", f"fingerprints={FINGERPRINT_SCHEME}"]
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:32]
 
 
