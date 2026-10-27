@@ -91,6 +91,7 @@ Extra fields: `category` (sast, sca, secrets, iac), path, line range, `cwe[]`, `
 
 ## Own Semgrep rule pack (clean-room, about 25 rules first, about 50 by week 5)
 JS/TS: command injection via `exec`, `eval`/`new Function`, SQL built into `pg`/`mysql`/`sequelize.query`/`knex.raw`, Mongo `$where` or `find(req.body)`, reflected XSS from `req.*`, `dangerouslySetInnerHTML` and `innerHTML` with non-literals, path traversal in `fs`/`sendFile`, SSRF from `req.*`, open redirect, JWT `none` or `decode` as verify, `rejectUnauthorized:false`, weak cipher or ECB, permissive CORS with credentials, unsafe deserialisation. Python: `shell=True` or `os.system`, `eval`/`exec`, SQL by f-string or `.raw`/`text()`, `pickle`/unsafe `yaml.load`, `verify=False`, Flask `debug=True`, `render_template_string` with request data, weak password hashing, path traversal and SSRF from `request.*`, XXE in `lxml`, `@csrf_exempt`.
+Supply-chain loaders (4 JS/TS rules, added after a real injected `babel.config.js`): base64/hex-decoded data run as code (`eval-decoded-payload`, taint); code hidden behind 100+ blanks on a line (`hidden-payload-padding`); generated `_0x…`/`_$_…` names plus `eval`, `new Function` or a short `global.<x> =` on one line (`obfuscated-loader`, blocks) or without them (`obfuscated-javascript`, warn only). Three are text-level (`languages: [regex]`) so they still fire on unparsable files. Semgrep runs with `--disable-nosem`, so a pull request cannot silence rules with a comment.
 Each rule has a test file (`ruleid:`, `ok:`, `todoruleid:`, at least 3 positive and 3 near-miss negative), mandatory `cwe`, `severity`, `confidence` metadata, taint mode with sources limited to `req.*`/`request.*`, default ignores (tests, fixtures, `node_modules`, `dist`, minified, migrations). CI runs `semgrep --validate` and `--test`. Triage hits on about 20 popular clean repos; a rule may block only at 90% precision; provenance notes per rule.
 
 ## Build order (8 weeks, riskiest first)
@@ -136,7 +137,7 @@ Update `plan.md` sections 1.4, 3.4, 3.7, 3.9 with the corrections above and link
 
 **Done (weeks 0 to 3, except the human steps):** scanner image and `DockerRunner` (with cancel and
 orphan sweep), four adapters, OSV offline refresh, finding schema, fingerprints, baselines, policy
-loader and engine (with conformance vectors), SARIF export, 31 own Semgrep rules, GitHub client,
+loader and engine (with conformance vectors), SARIF export, 35 own Semgrep rules, GitHub client,
 rendering and publishing, Postgres schema (alembic), job queue, webhook receiver, safe git fetch,
 job pipeline, worker, `newsoc serve | worker | replay-webhook | create-app`. 527 tests pass,
 including the full pipeline with the real scanners in Docker (clean PR about 12 s end to end).

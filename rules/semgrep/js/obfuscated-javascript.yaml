@@ -1,0 +1,26 @@
+rules:
+  - id: newsoc.js.obfuscated-javascript
+    # Text-level rule: obfuscated files are often not parseable.
+    languages: [regex]
+    severity: WARNING
+    message: >-
+      Obfuscator-style names (like _0x1a2b3c) in source code. Legitimate source is rarely
+      obfuscated, while supply-chain malware often is. Open the file and confirm what it does. If
+      you cannot explain it, do not run or build the project, remove the code, and check the git
+      history for who added it. Third-party bundles belong in an ignored vendor directory.
+    paths:
+      include: ["*.js", "*.jsx", "*.mjs", "*.cjs", "*.ts", "*.tsx", "*.mts", "*.cts"]
+    # Same generated-name test as obfuscated-loader.yaml, for lines WITHOUT eval( / new Function( /
+    # short global assignment (those lines belong to obfuscated-loader). Warn only: this does not
+    # say what the code does, so it never blocks. Comment lines (// or *) are skipped.
+    pattern-regex: |-
+      (?m)^(?![ \t]*+(?://|\*(?!/)))(?![^\n]*?(?:\beval\s*\(|\bnew\s+Function\s*\(|\bglobal(?:This)?\s*(?:\.\s*[A-Za-z_$][\w$]{0,3}|\[\s*["'][\w$]{1,4}["']\s*\])\s*=[^=]))[^\n]*?\K\b(?:_{1,2}0x[0-9a-fA-F]{4,8}|_\$_[0-9a-f]{4})\b(?:[^\n]{0,200}?\b(?:_{1,2}0x[0-9a-fA-F]{4,8}|_\$_[0-9a-f]{4})\b){2}
+    metadata:
+      cwe:
+        - "CWE-506: Embedded Malicious Code"
+      owasp:
+        - "A08:2021 - Software and Data Integrity Failures"
+      severity: medium
+      confidence: LOW
+      category: security
+      provenance: "Written clean-room from the public description of JavaScript obfuscator output (generated identifier conventions); no registry or third-party rule consulted."

@@ -1,0 +1,36 @@
+rules:
+  - id: newsoc.js.obfuscated-loader
+    # Text-level rule: obfuscated files are often not parseable, and the tell is on one line.
+    languages: [regex]
+    severity: ERROR
+    message: >-
+      Machine-generated obfuscated code (names like _0x1a2b3c) on a line that also runs dynamic
+      code (eval or new Function) or sets a short global such as global.i. This is the layout of
+      known malware loaders hidden in config and source files. Do not run, build or install this
+      project. Treat any machine that did as possibly compromised and rotate the secrets it could
+      reach. Remove the code and check the git history for who added it.
+    paths:
+      include: ["*.js", "*.jsx", "*.mjs", "*.cjs", "*.ts", "*.tsx", "*.mts", "*.cts"]
+    # One match per line, reported at the first obfuscated name. All on the same line:
+    #  - the line contains eval( or new Function( or a short global.<name> / global['<name>'] assignment
+    #    (the primitive list must stay identical in obfuscated-javascript.yaml, which reports the
+    #    same obfuscated lines when none of these is present; a unit test compares the two);
+    #  - three or more generated names, each at most 200 characters after the previous one:
+    #    _0x then 4-8 hex digits (one or two leading underscores), or _$_ then 4 hex digits;
+    #    only the first three are matched, so a line reports once and the match stays short;
+    #  - \K starts the reported match at the first generated name instead of the line start;
+    #  - lines that start with // or * are comments and are skipped.
+    # Plain Function(...) without new is left out on purpose: stock obfuscator output uses it to
+    # find the global object.
+    pattern-regex: |-
+      (?m)^(?![ \t]*+(?://|\*(?!/)))(?=[^\n]*?(?:\beval\s*\(|\bnew\s+Function\s*\(|\bglobal(?:This)?\s*(?:\.\s*[A-Za-z_$][\w$]{0,3}|\[\s*["'][\w$]{1,4}["']\s*\])\s*=[^=]))[^\n]*?\K\b(?:_{1,2}0x[0-9a-fA-F]{4,8}|_\$_[0-9a-f]{4})\b(?:[^\n]{0,200}?\b(?:_{1,2}0x[0-9a-fA-F]{4,8}|_\$_[0-9a-f]{4})\b){2}
+    metadata:
+      cwe:
+        - "CWE-506: Embedded Malicious Code"
+        - "CWE-94: Improper Control of Generation of Code ('Code Injection')"
+      owasp:
+        - "A08:2021 - Software and Data Integrity Failures"
+      severity: high
+      confidence: MEDIUM
+      category: security
+      provenance: "Written clean-room from the public description of JavaScript obfuscator output (generated identifier conventions) and loader campaigns; no registry or third-party rule consulted."

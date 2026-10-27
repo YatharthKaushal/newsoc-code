@@ -1,0 +1,54 @@
+rules:
+  - id: newsoc.js.eval-decoded-payload
+    mode: taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Data decoded from base64 or hex is executed as code (eval, Function, vm or module._compile).
+      Malware loaders hide their payload this way. Do not run, build or install this project. Treat
+      any machine that did as possibly compromised and rotate the secrets it could reach. Remove
+      this code and check the git history for who added it.
+    # Source: a run-time decode of an opaque blob. Sink: anything that turns a string into code.
+    # Taint flows through variables, concatenation, .toString() and .join(), so the split form
+    # (atob in one statement, eval in the next) is found too.
+    pattern-sources:
+      - pattern-either:
+          - pattern: atob(...)
+          - pattern: window.atob(...)
+          - pattern: globalThis.atob(...)
+          - pattern: global.atob(...)
+          - pattern: Buffer.from($DATA, "base64")
+          - pattern: Buffer.from($DATA, "base64url")
+          - pattern: Buffer.from($DATA, "hex")
+          - pattern: new Buffer($DATA, "base64")
+          - pattern: new Buffer($DATA, "hex")
+    # Sinks. Only the argument that becomes code counts, so a decoded blob passed as an option
+    # (vm.Script's cachedData) is not a hit. new Function(...) takes code from its last argument,
+    # so every argument counts there.
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: eval($CODE)
+              - pattern: (0, eval)($CODE)
+              - pattern: window.eval($CODE)
+              - pattern: global.eval($CODE)
+              - pattern: globalThis.eval($CODE)
+              - pattern: vm.runInThisContext($CODE, ...)
+              - pattern: vm.runInNewContext($CODE, ...)
+              - pattern: vm.runInContext($CODE, ...)
+              - pattern: new vm.Script($CODE, ...)
+              - pattern: $MODULE._compile($CODE, ...)
+          - focus-metavariable: $CODE
+      - pattern-either:
+          - pattern: new Function(...)
+          - pattern: Function(...)
+    metadata:
+      cwe:
+        - "CWE-506: Embedded Malicious Code"
+        - "CWE-94: Improper Control of Generation of Code ('Code Injection')"
+      owasp:
+        - "A08:2021 - Software and Data Integrity Failures"
+      severity: critical
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the public description of base64-then-eval loaders; no registry or third-party rule consulted."

@@ -130,8 +130,8 @@ daemon or image is missing, so check the skip count in the summary.
 ## Known limits of this MVP
 
 - A renamed file's existing findings look new (fingerprints include the path).
-- Semgrep Community Edition has no cross-file analysis, and the rule pack covers about 30
-  weakness classes in JavaScript/TypeScript and Python.
+- Semgrep Community Edition has no cross-file analysis, and the rule pack covers about 35
+  weakness classes and malware indicators in JavaScript/TypeScript and Python.
 - Draft pull requests are scanned when marked ready for review.
 - One worker process, one job at a time; no dashboard yet.
 - The checkout size cap is checked after the fetch, not during it.

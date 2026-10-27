@@ -1,0 +1,33 @@
+rules:
+  - id: newsoc.js.hidden-payload-padding
+    # Text-level rule: it must still fire when the file is not valid JavaScript.
+    languages: [regex]
+    severity: ERROR
+    message: >-
+      Code is hidden on a line behind a very long run of spaces or tabs, so it sits off-screen in
+      editors and review diffs. Malware loaders planted in files such as babel.config.js use this
+      layout. Do not run, build or install this project. Treat any machine that did as possibly
+      compromised and rotate the secrets it could reach. Remove the hidden code and check the git
+      history for who added it.
+    paths:
+      include: ["*.js", "*.jsx", "*.mjs", "*.cjs", "*.ts", "*.tsx", "*.mts", "*.cts"]
+    # Two shapes, both followed by at least some real code on the same line:
+    #  1. a statement or comment just ended (; { } ) ] */), then 100 or more spaces/tabs, then code
+    #     that is not a comment. Trailing comments pushed to a far column are alignment, not a payload.
+    #  2. the line starts with 150 or more spaces/tabs, then 100 or more characters of code. Indentation
+    #     in generated code was seen up to 120 columns, so the limit is higher than for shape 1.
+    # Blanks are space, tab, form feed, vertical tab and the Unicode spaces a JavaScript parser
+    # also treats as whitespace (no-break space, ideographic space, BOM, and so on).
+    # The run is possessive ({n,}+) so a file full of whitespace costs one pass, not a backtrack per
+    # character. The match is capped at 80 characters of the payload.
+    pattern-regex: |-
+      (?m)(?:(?:[;{})\]]|\*/)[ \t\x0b\x0c\x{00a0}\x{1680}\x{2000}-\x{200a}\x{202f}\x{205f}\x{3000}\x{feff}]{100,}+(?!//|/\*)(?=\S[^\r\n]{19})|^[ \t\x0b\x0c\x{00a0}\x{1680}\x{2000}-\x{200a}\x{202f}\x{205f}\x{3000}\x{feff}]{150,}+(?=\S[^\r\n]{99}))\S[^\r\n]{0,79}
+    metadata:
+      cwe:
+        - "CWE-506: Embedded Malicious Code"
+      owasp:
+        - "A08:2021 - Software and Data Integrity Failures"
+      severity: critical
+      confidence: HIGH
+      category: security
+      provenance: "Written clean-room from the public description of padded, off-screen loader lines; no registry or third-party rule consulted."
