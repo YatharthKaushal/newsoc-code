@@ -12,6 +12,7 @@ timeout, kill, or unparsable report makes the category "Not assessed".
 from __future__ import annotations
 
 import os
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -33,6 +34,9 @@ MAX_TREE_FILES = 100_000
 MAX_SNIPPET_FILE_BYTES = 2 * 1024 * 1024
 MAX_SNIPPET_LINES = 3
 MAX_SNIPPET_CHARS = 200
+# A run of 60 or more blanks is not indentation: it hides code off-screen, and would fill the
+# whole 200-character snippet with nothing.
+_BLANK_RUN = re.compile(r"[ \t]{60,}")
 
 
 @dataclass
@@ -116,7 +120,7 @@ def read_source_lines(root: Path, rel_path: str, start: int, end: int) -> tuple[
     lines = data.decode("utf-8", errors="replace").splitlines()
     first = max(start, 1) - 1
     last = min(max(end, start), first + MAX_SNIPPET_LINES, len(lines))
-    return tuple(line[:MAX_SNIPPET_CHARS] for line in lines[first:last])
+    return tuple(_BLANK_RUN.sub(" [...] ", line)[:MAX_SNIPPET_CHARS] for line in lines[first:last])
 
 
 def find_line_of(root: Path, rel_path: str, needle: str) -> int:

@@ -130,8 +130,8 @@ daemon or image is missing, so check the skip count in the summary.
 ## Known limits of this MVP
 
 - A renamed file's existing findings look new (fingerprints include the path).
-- Semgrep Community Edition has no cross-file analysis, and the rule pack covers about 30
-  weakness classes in JavaScript/TypeScript and Python.
+- Semgrep Community Edition has no cross-file analysis, and the rule pack covers about 35
+  weakness classes and malware indicators in JavaScript/TypeScript and Python.
 - Gitleaks' entropy rule (`generic-api-key`) is ignored in lock and checksum files (`*.lock`,
   `*.sum`, `package-lock.json`, ...), where it mistakes dependency hashes for keys. Specific
   rules (GitHub tokens, AWS keys, private keys) still apply there, and the number of ignored

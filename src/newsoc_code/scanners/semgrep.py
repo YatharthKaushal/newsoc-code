@@ -85,6 +85,9 @@ class SemgrepAdapter(ScannerAdapter):
             CONTAINER_RULES,
             "--metrics=off",
             "--disable-version-check",
+            # A pull request must not be able to silence a rule with a "nosemgrep" comment: waivers
+            # live in .secpolicy.yml, read from the base branch.
+            "--disable-nosem",
             "--quiet",
             "--json",
             "--output",
